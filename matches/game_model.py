@@ -2,9 +2,10 @@ from random import randint
 from matches.player import Player
 
 class GameModel():
-    def __init__(self, nb: int, player1 : Player, player2 : Player):
+    def __init__(self, nb: int, player1 : Player, player2 : Player, displayable: bool = True):
         self.nb = nb
         self.original_nb = nb
+        self.displayable = displayable
         self.players = [player1, player2]
 
         player1.game = self
@@ -12,6 +13,11 @@ class GameModel():
 
         self.current_player = None
         self.shuffle()
+
+    def display(self, player_name: str):
+        if self.displayable:
+            print(f"Remaining matches: {self.nb}")
+            print(f"It is {player_name}'s turn.")
 
     def step(self, action: int):
         if action < 1 or action > 3 or action > self.nb:
@@ -46,3 +52,6 @@ class GameModel():
         if not self.is_game_over():
             return None
         return self.current_player
+    
+    def get_remaining_matches(self) -> int:
+        return self.nb
