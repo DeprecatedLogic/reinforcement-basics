@@ -23,3 +23,16 @@ class Player():
 
     def __str__(self):
         return f"{self.name} has {self.nb_wins} victories and {self.nb_losses} losses in {self.nb_games} games!"
+    
+class Human(Player):
+    def play(self):
+        while True:
+            try:
+                nb_matches_to_remove = int(input("Enter the number of matches you would like to remove (1, 2 or 3): "))
+
+                if 0 < nb_matches_to_remove < 4:
+                    return nb_matches_to_remove
+                
+                print("Invalid Entry!")
+            except ValueError:
+                print("Invalid Entry!")
