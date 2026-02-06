@@ -17,7 +17,7 @@ The player (a pixel) must navigate through a circuit as fast as possible.
 
 ## Learning Mechanics
 The core of this project is the learning AI. Unlike the simplified AI (pre-defined actions) also included in the games, the learning agent improves over time.  
-The agent tries random moves to discover the game rules, receives psotive feedback for winning (or even fast times) and negative feedback for losing (or wrong moves) which then help the agent update its internal **Q-table** or **value function** after every game to *reinforce* successful strategies.
+The agent tries random moves to discover the game rules, receives positive feedback for winning (or even fast times) and negative feedback for losing (or wrong moves) which then help the agent update its internal **Q-table** or **value function** after every game to *reinforce* successful strategies.
 
 ## Prerequisites
 - Make sure you have git installed.
