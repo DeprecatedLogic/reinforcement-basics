@@ -1,9 +1,9 @@
 import tkinter as tk
 
 class GameView(tk.Tk):
-    def __init__(self, controler):
+    def __init__(self, controller):
         super().__init__()
-        self.controler = controler
+        self.controller = controller
         self.title("Jeu des Allumettes")
 
         self.canvas = tk.Canvas(self, width=400, height=200, bg="white")
@@ -20,8 +20,8 @@ class GameView(tk.Tk):
 
     def update_view(self):
         self.canvas.delete("all")
-        nb_matches = self.controler.get_nb_matches()
-        status_msg = self.controler.get_status_message()
+        nb_matches = self.controller.get_nb_matches()
+        status_msg = self.controller.get_status_message()
 
         self.draw_matches(nb_matches)
         self.message_label.config(text=status_msg)
@@ -45,7 +45,7 @@ class GameView(tk.Tk):
         button_reset = tk.Button(
             self.buttons_frame, 
             text="Recommencer", 
-            command=self.controler.reset_game
+            command=self.controller.reset_game
         )
         button_reset.pack()
 
@@ -57,6 +57,6 @@ class GameView(tk.Tk):
             button = tk.Button(
                 self.buttons_frame, 
                 text=f"Prendre {i}", 
-                command=lambda val=i: self.controler.handle_human_move(val)
+                command=lambda val=i: self.controller.handle_human_move(val)
             )
             button.pack(side=tk.LEFT, padx=10)
