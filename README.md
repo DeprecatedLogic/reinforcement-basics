@@ -23,13 +23,13 @@ The agent tries random moves to discover the game rules, receives positive feedb
 - Make sure you have git installed.
 - Make sure you have Python version 3.11 or newer installed.  
   For Windows, you can find the official download page for Python [here](https://www.python.org/downloads/).  
-**Note:** If you want to avoid using git, you can also download the repository as a *zip* file and skip step 2 in the [Getting Started](#getting-started) section.
+**Note:** If you want to avoid using git, you can also download the repository as a *zip* file and skip step 1 in the [Getting Started](#getting-started) section.
 
 ## Getting Started
 
 1. Clone the repository and navigate to the directory
 ```sh
-git clone https://github.com/ItzKarizma/reinforcement-basics.git
+git clone https://github.com/EgoChaxs/reinforcement-basics.git
 cd reinforcement-basics
 ```
 
