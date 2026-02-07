@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 from matches.player import Player, Human, AI
 from matches.game_controller import GameController
 from matches.game_model import GameModel
@@ -40,10 +41,15 @@ def compare_ai(*ais):
         for value in values:
             print(f"{value:^15.3}", end='')
         print()
+=======
+from matches.player import Player, Human
+from matches.game_controller import GameController
+>>>>>>> 0bcf6586319f1ce41238a1eb8a7d3f816bb8df68
 
 if __name__ == "__main__":
     p1 = Player("AI")
     p2 = Human("Player2")
+<<<<<<< HEAD
     alice = AI("Alice")
     bobby = AI("Bobby")
     randy = AI("Randy")
@@ -54,3 +60,7 @@ if __name__ == "__main__":
     #app = GameController(p1, p2, nb_matches=21)
 
     
+=======
+
+    app = GameController(p1, p2, nb_matches=21)
+>>>>>>> 0bcf6586319f1ce41238a1eb8a7d3f816bb8df68
