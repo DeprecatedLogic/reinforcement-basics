@@ -1,13 +1,22 @@
 from matches.game_model import GameModel
-from matches.player import Player, Human
+from matches.player import Player, Human, AI
 from matches.game_view import GameView
 
 class GameController:
     def __init__(self, player1, player2, nb_matches):
-        #Initialisation of model and view
+        self.action_taken = 0
+        
+        # Initialisation of model
         self.model = GameModel(nb_matches, player1, player2)
+        
+        # Skip GUI when 2 AIs are playing
+        if all(isinstance(player, AI) for player in self.model.players):
+            self.model.play()
+            return
+        
+        # Initialisation of view
         self.view = GameView(self)
-
+        
         #If AI is first to play, we make him play straight away
         if not isinstance(self.model.get_current_player(), Human):
             self.handle_ai_move()
@@ -29,7 +38,14 @@ class GameController:
         return f"It is {current.name}'s turn."
     
     def reset_game(self):
+        self.action_taken = 0
         self.model.reset()
+        
+         # Skip GUI when 2 AIs are playing
+        if all(isinstance(player, AI) for player in self.model.players):
+            self.model.play()
+            return
+        
         self.view.reset()
         self.view.update_view()
 
@@ -41,6 +57,7 @@ class GameController:
         current_player = self.model.get_current_player()
 
         if isinstance(current_player, Human):
+            self.action_taken = action
             self.model.step(action)
 
             if self.model.is_game_over():
@@ -58,6 +75,7 @@ class GameController:
 
         action = current_player.play()
         action = min(action, self.model.nb)
+        self.action_taken = action
 
         self.model.step(action)
 

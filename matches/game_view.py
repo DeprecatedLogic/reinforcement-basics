@@ -26,7 +26,7 @@ class GameView(tk.Tk):
         nb_matches = self.controller.get_nb_matches()
         status_msg = self.controller.get_status_message()
 
-        self.counter.config(text=nb_matches)
+        self.counter.config(text=f"{nb_matches} ({self.controller.action_taken} removed)")
         self.draw_matches(nb_matches)
         self.message_label.config(text=status_msg)
 

@@ -38,27 +38,32 @@ def compare_ai(*ais):
     for state, values in sorted_v(all_v_dict):
         print(f"{state:2} :", end='')
         for value in values:
-            print(f"{value:^15.3}", end='')
+            print(f"{float(value):^15.3}", end='')
         print()
 
 if __name__ == "__main__":
-    p1 = Human("Gevin")
-    p2 = Player("Player2")
+    p1 = Human("Human1")
+    p2 = Human("Human2")
+    random_player = Player("Random")
     alice = AI("Alice")
     bobby = AI("Bobby")
     randy = AI("Randy")
     
     bobby.epsilon = 1
     training(alice, bobby, 100000, 1000, 21)
-    training(p2, randy, 100000, 1, 21)
+    training(random_player, randy, 100000, 100, 21)
     bobby.reset_stats()
     randy.reset_stats()
 
     randy.epsilon = 0
     bobby.epsilon = 0
-
     for i in range(100):
-        game1 = GameModel(21, bobby, randy).play()
-    
-    #game = GameController(p1, bobby, 21)
+        GameController(player1=bobby, player2=randy, nb_matches=21)
+
     compare_ai(alice, bobby, randy)
+    GameController(player1=p1, player2=p2, nb_matches=21)
+
+    alice.reset_stats()
+    bobby.reset_stats()
+    GameController(player1=bobby, player2=alice, nb_matches=21)
+    compare_ai(alice, bobby)
