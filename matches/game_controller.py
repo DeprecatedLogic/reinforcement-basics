@@ -4,10 +4,6 @@ from matches.game_view import GameView
 
 class GameController:
     def __init__(self, player1, player2, nb_matches):
-        #At least one of the players is human
-        if not (isinstance(player1, Human) or isinstance(player2, Human)):
-            raise Exception("At least one player should be human.")
-        
         #Initialisation of model and view
         self.model = GameModel(nb_matches, player1, player2)
         self.view = GameView(self)

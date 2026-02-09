@@ -21,6 +21,10 @@ class Player():
     def lose(self):
         self.nb_losses += 1
 
+    def reset_stats(self):
+        self.nb_wins = 0
+        self.nb_losses = 0
+
     def __str__(self):
         return f"{self.name} has {self.nb_wins} victories and {self.nb_losses} losses in {self.nb_games} games!"
     

@@ -6,6 +6,9 @@ class GameView(tk.Tk):
         self.controller = controller
         self.title("Jeu des Allumettes")
 
+        self.counter = tk.Label(self, text="", font=("Arial", 14))
+        self.counter.pack(pady=10)
+
         self.canvas = tk.Canvas(self, width=400, height=200, bg="white")
         self.canvas.pack(pady=20)
 
@@ -23,6 +26,7 @@ class GameView(tk.Tk):
         nb_matches = self.controller.get_nb_matches()
         status_msg = self.controller.get_status_message()
 
+        self.counter.config(text=nb_matches)
         self.draw_matches(nb_matches)
         self.message_label.config(text=status_msg)
 

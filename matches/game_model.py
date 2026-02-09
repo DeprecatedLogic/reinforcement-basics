@@ -55,3 +55,24 @@ class GameModel():
     
     def get_remaining_matches(self) -> int:
         return self.nb
+    
+    def play(self):
+        while not self.is_game_over():
+            current_player = self.get_current_player()
+            self.display(current_player.name)
+            
+            action = current_player.play()
+            action = min(action, self.nb)
+            
+            self.step(action)
+            
+            if self.is_game_over():
+                break
+            
+            self.switch_player()
+        
+        winner = self.get_winner()
+        loser = self.get_loser()
+        if winner and loser:
+            winner.win()
+            loser.lose()
