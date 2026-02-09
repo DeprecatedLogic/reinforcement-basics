@@ -58,7 +58,7 @@ if __name__ == "__main__":
     bobby.epsilon = 0
 
     for i in range(100):
-        game1 = GameModel(21, bobby, randy).play()
+        game1 = GameModel(21, bobby, randy, displayable=False).play()
     
-    #game = GameController(p1, bobby, 21)
+    game = GameController(p1, bobby, 21)
     compare_ai(alice, bobby, randy)
