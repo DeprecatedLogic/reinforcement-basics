@@ -1,17 +1,16 @@
 import tkinter as tk
 
-class GameView(tk.Tk):
+class GameView(tk.Frame):
     """Tkinter-based graphical user interface for the game of matches."""
-    def __init__(self, controller):
+    def __init__(self, parent, controller):
         """
         Initialize the GUI window and its components.
 
         Args:
             controller: GameController instance that handles logic and state
         """
-        super().__init__()
+        super().__init__(parent)
         self.controller = controller
-        self.title("Jeu des Allumettes")
 
         self.counter = tk.Label(self, text="", font=("Arial", 14))
         self.counter.pack(pady=10)

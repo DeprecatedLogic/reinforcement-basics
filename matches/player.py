@@ -1,4 +1,5 @@
 from random import randint, choice, random
+import json
 
 class Player():
     """Base class representing a participant in the game. It can be a human or an AI."""
@@ -171,7 +172,7 @@ class AI(Player):
         self.history = []
 
 
-    def next_epsilon(self, coefficient = 0.95, minimum_eps = 0.05) -> None:
+    def next_epsilon(self, coefficient = 0.1, minimum_eps = 0.05) -> None:
         """
         Reduce the exploration rate (epsilon decay).
 
@@ -182,3 +183,50 @@ class AI(Player):
         self.epsilon *= coefficient
         if self.epsilon < minimum_eps:
             self.epsilon = minimum_eps
+
+    def download(self, filename: str) -> None:
+        """
+        Serialize the AI's key learning parameters and value function to a JSON file.
+        
+        Args:
+            filename: Path to the file where the data will be saved
+        """
+        if not filename.endswith(".json"):
+            filename += ".json"
+
+        #Convert dict keys to str for json compatibility
+        values_str = {str(k): v for k, v in self.values.items()}
+        
+        data = {
+            'epsilon': self.epsilon,
+            'lr': self.lr,
+            'gamma': self.gamma,
+            'values': values_str
+        }
+        
+        with open(filename, 'w') as f:
+            json.dump(data, f, indent=4)
+
+    def load(self, filename: str) -> None:
+        """
+        Deserialize the AI's key learning parameters and value function from a JSON file.
+        
+        Args:
+            filename: Path to the file from which the data will be loaded
+        """
+        with open(filename, 'r') as f:
+            data = json.load(f)
+        
+        self.epsilon = data['epsilon']
+        self.lr = data['lr']
+        self.gamma = data['gamma']
+        
+        #Reconstruct values dict with original key types
+        values_str = data['values']
+        self.values = {}
+        for k_str, v in values_str.items():
+            if k_str in ['win', 'lose']:
+                k = k_str
+            else:
+                k = int(k_str)
+            self.values[k] = v

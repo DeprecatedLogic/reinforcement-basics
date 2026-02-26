@@ -1,6 +1,8 @@
 from matches.player import Player, Human, AI
 from matches.game_controller import GameController
 from matches.game_model import GameModel
+from main_gui import MainView
+import tkinter as tk
 
 def training(ai1, ai2, nb_games, nb_epsilon, nb_matches = 12):
     # Train the AIs @ai1 and @ai2 during @nb_games games
@@ -42,28 +44,23 @@ def compare_ai(*ais):
         print()
 
 if __name__ == "__main__":
-    p1 = Human("Human1")
-    p2 = Human("Human2")
+    p1 = Human("Player1")
+    p2 = Human("Player2")
     random_player = Player("Random")
     alice = AI("Alice")
     bobby = AI("Bobby")
     randy = AI("Randy")
-    
-    bobby.epsilon = 1
-    training(alice, bobby, 100000, 1000, 21)
-    training(random_player, randy, 100000, 100, 21)
-    bobby.reset_stats()
-    randy.reset_stats()
 
-    randy.epsilon = 0
-    bobby.epsilon = 0
-    for i in range(100):
-        GameController(player1=bobby, player2=randy, nb_matches=21)
+    training(bobby, alice, 100000, 10, 21)
+    compare_ai(bobby, alice)
 
-    compare_ai(alice, bobby, randy)
-    GameController(player1=p1, player2=p2, nb_matches=21)
+    bobby.download("bobby_params")
+    #bobby.load("bobby_params.json")
 
-    alice.reset_stats()
-    bobby.reset_stats()
-    GameController(player1=bobby, player2=alice, nb_matches=21)
-    compare_ai(alice, bobby)
+    root = tk.Tk()
+    root.title("Projet IA")
+    root.geometry("700x500")    
+    root.resizable(False, False)
+
+    app = MainView(root, p1, bobby)
+    root.mainloop()

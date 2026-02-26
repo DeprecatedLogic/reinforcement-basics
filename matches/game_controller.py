@@ -4,7 +4,7 @@ from matches.game_view import GameView
 
 class GameController:
     """Mediator between the game model (logic) and view (GUI)."""
-    def __init__(self, player1, player2, nb_matches):
+    def __init__(self, player1, player2, nb_matches, parent):
         """
         Set up a new game session with GUI.
 
@@ -25,17 +25,20 @@ class GameController:
             return
         
         # Initialisation of view
-        self.view = GameView(self)
+        self.view = GameView(parent, self)
+        self.view.pack(fill="both", expand=True)
         
         #If AI is first to play, we make him play straight away
         if not isinstance(self.model.get_current_player(), Human):
             self.handle_ai_move()
 
-        self.start()
+        #self.start()
 
+    
     def start(self) -> None:
         """Launch the Tkinter main event loop."""
         self.view.mainloop()
+    
 
     def get_nb_matches(self) -> int:
         """Return current number of matches remaining."""
