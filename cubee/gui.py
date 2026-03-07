@@ -11,10 +11,7 @@ class GUI(tk.Frame):
         self.board_frame = tk.Frame(self)
         self.board_frame.pack()
 
-        self.buttons_frame = tk.Frame(self)
-        self.buttons_frame.pack(pady=20)
-
-    def create_board(self, rows, cols, on_cell_click) -> None:
+    def create_board(self, rows, columns, on_cell_click) -> None:
         """
         TODO
         """
@@ -25,11 +22,13 @@ class GUI(tk.Frame):
 
         for row in range(rows):
             row_buttons = []
-            for col in range(cols):
+            for col in range(columns):
                 btn = tk.Button(
                     self.board_frame,
-                    text="",
-                    command=lambda r=row, c=col: on_cell_click(r, c)
+                    text=" ",
+                    width=4,
+                    height=2,
+                    command=lambda r=row, c=col: on_cell_click(r, c) if on_cell_click else None
                 )
                 btn.grid(row=row, column=col, sticky="nsew")
                 row_buttons.append(btn)
@@ -40,14 +39,10 @@ class GUI(tk.Frame):
         for row in range(rows):
             self.board_frame.grid_rowconfigure(row, weight=1)
 
-        for col in range(cols):
+        for col in range(columns):
             self.board_frame.grid_columnconfigure(col, weight=1)
 
-    def create_action_buttons(self) -> None:
-        """Create possible actions buttons (Up, Down, Left, Right)"""
-        pass
-
-    def end_game(self, button_command: function) -> None:
+    def end_game(self, button_command) -> None:
         """Replace action buttons with a 'Restart' button when game ends."""
         for widget in self.buttons_frame.winfo_children():
             widget.destroy()
