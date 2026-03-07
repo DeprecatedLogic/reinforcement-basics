@@ -1,7 +1,7 @@
 from random import choice
-from player import Player
-from actions import Action
-from cell import Cell
+from cubee.player import Player
+from cubee.actions import Action
+from cubee.cell import Cell
 
 class Board:
     """
