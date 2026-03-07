@@ -1,6 +1,6 @@
-from player import Human
-from engine import GameEngine
-from gui import GUI
+from cubee.player import Human
+from cubee.engine import GameEngine
+from cubee.gui import GUI
 
 class GameController:
     """ 
@@ -10,10 +10,14 @@ class GameController:
     """
 
     def __init__(self, engine: GameEngine, gui: GUI):
-        self.game_engine = engine
+        self.engine = engine
         self.gui = gui if any(
             [isinstance(player, Human) for player in engine.model.players]
         ) else None
+
+        if self.gui:
+            rows, cols = self.engine.model.board.rows, self.engine.model.board.columns
+            self.gui.create_board(rows, cols, on_cell_click = None)
         
     def play(self) -> None:
         """
@@ -28,7 +32,7 @@ class GameController:
         """
         while not self.game_model.is_game_over():
             self.display(self.game_model.current_player.name)
-            self.game_engine.make_move(self.game_model.current_player)
+            self.engine.make_move(self.game_model.current_player)
             self.update_gui(end_game = False)
         
         winner = self.game_model.get_winner()
@@ -47,7 +51,10 @@ class GameController:
 
     def update_gui(self, end_game: bool):
         if not end_game:
-            pass
+            if self.gui:
+                pass
+            else:
+                pass
         elif self.gui:
             self.gui.end_game(button_command = self.restart_game)
         else:

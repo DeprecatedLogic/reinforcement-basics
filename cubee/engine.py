@@ -1,7 +1,7 @@
-from player import Player
-from model import GameModel
-from actions import Action
-from cell import Cell
+from cubee.player import Player
+from cubee.model import GameModel
+from cubee.actions import Action
+from cubee.cell import Cell
 
 class GameEngine:
     """

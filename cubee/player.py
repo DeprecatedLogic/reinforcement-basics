@@ -1,5 +1,5 @@
-from model import Cell
-from engine import Action
+from cubee.cell import Cell
+from cubee.actions import Action
 from random import choice
 
 class Player:
