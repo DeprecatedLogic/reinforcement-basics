@@ -1,6 +1,6 @@
-from player import Player, Human, AI
-from model import GameModel
+from player import Human
 from engine import GameEngine
+from gui import GUI
 
 class GameController:
     """ 
@@ -9,12 +9,12 @@ class GameController:
     (Does not contain game rules.)
     """
 
-    def __init__(self, engine: GameEngine):
+    def __init__(self, engine: GameEngine, gui: GUI):
         self.game_engine = engine
-        self.needs_gui = True if any(
+        self.gui = gui if any(
             [isinstance(player, Human) for player in engine.model.players]
-        ) else False
-
+        ) else None
+        
     def play(self) -> None:
         """
         Run one complete game until a winner is determined.
@@ -29,17 +29,26 @@ class GameController:
         while not self.game_model.is_game_over():
             self.display(self.game_model.current_player.name)
             self.game_engine.make_move(self.game_model.current_player)
-            self.update_gui()
+            self.update_gui(end_game = False)
         
         winner = self.game_model.get_winner()
         loser = self.game_model.get_loser()
         if winner and loser:
             winner.win()
             loser.lose()
-        self.update_gui()
+        
+        self.update_gui(end_game = True)
 
-    def display(self, name: str):
+    def display_turn(self, name: str):
         print(f"It is {name}'{'s' if not name.endswith('s') else ''} turn.")
 
-    def update_gui(self):
+    def restart_game(self):
         pass
+
+    def update_gui(self, end_game: bool):
+        if not end_game:
+            pass
+        elif self.gui:
+            self.gui.end_game(button_command = self.restart_game)
+        else:
+            pass
