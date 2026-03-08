@@ -1,6 +1,7 @@
 from matches.player import Player, Human, AI
 from matches.game_controller import GameController
 from matches.game_model import GameModel
+from cubee.player import Human as CubeeHuman, Player as CubeePlayer
 from main_gui import MainView
 import tkinter as tk
 
@@ -44,23 +45,37 @@ def compare_ai(*ais):
         print()
 
 if __name__ == "__main__":
-    p1 = Human("Player1")
-    p2 = Human("Player2")
-    random_player = Player("Random")
-    alice = AI("Alice")
-    bobby = AI("Bobby")
-    randy = AI("Randy")
+    players = {
+        "matches": {
+            "Player 1": Human("Player 1"),
+            "Player 2": Human("Player 2"),
+            "Random": Player("Random"),
+            "Alice": AI("Alice"),
+            "Bobby": AI("Bobby"),
+            "Randy": AI("Randy")
+        },
+        "cubee": {
+            "Player 1": CubeeHuman("Player 1"),
+            "Player 2": CubeeHuman("Player 2")
+        },
+        "pixelkart": {
+            # TODO: Define PixelKart players here.
+        }
+    }
+
+    bobby = players["matches"]["Bobby"]
+    alice = players["matches"]["Alice"]
 
     training(bobby, alice, 100000, 10, 21)
     compare_ai(bobby, alice)
 
-    bobby.download("bobby_params")
-    #bobby.load("bobby_params.json")
+    # bobby.download("bobby_params")
+    bobby.load("bobby_params.json")
 
     root = tk.Tk()
     root.title("Projet IA")
-    root.geometry("700x500")    
+    root.geometry("700x500")
     root.resizable(False, False)
 
-    app = MainView(root, p1, bobby)
+    app = MainView(root, players=players)
     root.mainloop()
