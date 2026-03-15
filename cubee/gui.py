@@ -1,3 +1,4 @@
+from cubee.colors import Color
 import tkinter as tk
 
 class GUI(tk.Frame):
@@ -7,9 +8,13 @@ class GUI(tk.Frame):
         Initialize the GUI window and its components.
         """
         super().__init__(parent)
-
-        self.board_frame = tk.Frame(self)
+        self.configure(bg="#2C3E50")
+        
+        self.board_frame = tk.Frame(self, bg="#2C3E50")
         self.board_frame.pack()
+
+        self.bottom_label = tk.Label(self, text = "Starting Game...", bg="#2C3E50", fg="#FFFFFF")
+        self.bottom_label.pack(side = "bottom")
 
     def create_board(self, rows, columns, on_cell_click) -> None:
         """
@@ -28,6 +33,7 @@ class GUI(tk.Frame):
                     text=" ",
                     width=4,
                     height=2,
+                    bg=Color.EMPTY.value,
                     command=lambda r=row, c=col: on_cell_click(r, c) if on_cell_click else None
                 )
                 btn.grid(row=row, column=col, sticky="nsew")
@@ -42,13 +48,28 @@ class GUI(tk.Frame):
         for col in range(columns):
             self.board_frame.grid_columnconfigure(col, weight=1)
 
+    def update_turn_message(self, message) -> None:
+        self.bottom_label.config(text = message)
+
+    def update_cell(self, row: int, col: int, label: str, color: Color | None) -> None:
+        button = self.board_buttons[row][col]
+        if color is not None:
+            button.config(text = label, bg = color.value)
+        else:
+            button.config(text = label)
+
+    def update_board(self, cells: list[tuple(int, int)], color: Color) -> None:
+        for cell in cells:
+            row, col = cell
+            self.board_buttons[row][col].config(bg = color.value)
+
     def end_game(self, button_command) -> None:
         """Replace action buttons with a 'Restart' button when game ends."""
-        for widget in self.buttons_frame.winfo_children():
+        for widget in self.board_frame.winfo_children():
             widget.destroy()
         
         button_reset = tk.Button(
-            self.buttons_frame, 
+            self.board_frame, 
             text="Restart", 
             command=button_command
         )
