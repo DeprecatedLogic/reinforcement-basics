@@ -34,8 +34,12 @@ class GameController:
         else:
             self._run_cli_mode(initial_state)
 
-    def _run_gui_mode(self, initial_state) -> None:
-        """_summary_"""
+    def _run_gui_mode(self, initial_state: dict) -> None:
+        """_summary_
+        
+        Args:
+            initial_state (dict): _description_
+        """
         self.gui.create_board(
             initial_state["board_rows"],
             initial_state["board_columns"],
@@ -69,8 +73,12 @@ class GameController:
             self.gui.end_game(button_command = self.restart_game)
             self._show_game_over_message()
 
-    def _update_turn_message(self, current_player) -> None:
-        """_summary_"""
+    def _update_turn_message(self, current_player: Player) -> None:
+        """_summary_
+        
+        Args:
+            current_player (Player): _description_
+        """
         name = current_player.name
         message = f"It is {name}'{'s' if not name.lower().endswith('s') else ''} turn."
         self.gui.update_turn_message(message)
@@ -82,8 +90,12 @@ class GameController:
         message = f"Game over! {winner.name} wins!" if winner else "Draw?"
         self.gui.update_turn_message(message)
 
-    def _run_cli_mode(self, initial_state) -> None:
-        """_summary_"""
+    def _run_cli_mode(self, initial_state: dict) -> None:
+        """_summary_
+        
+        Args:
+            initial_state (dict): _description_
+        """
         current_player = initial_state["current_player"]
         while not self.engine.is_game_over():
             self._print_board()
@@ -110,7 +122,11 @@ class GameController:
         self._print_game_over(winner, losers, cells_counter)
 
     def _print_turn(self, current_player: Player) -> None:
-        """_summary_"""
+        """_summary_
+        
+        Args:
+            current_player (Player): _description_
+        """
         name = current_player.name
         message = f"It is {name}'{'s' if not name.lower().endswith('s') else ''} turn."
         print(message)
@@ -121,8 +137,13 @@ class GameController:
         self.run()
 
     def _print_game_over(self, winner: Player, losers: list[Player], cells_counter: dict[Cell, int]) -> None:
-        """Prints a centered leaderboard at the end of the game."""
-
+        """Prints a centered leaderboard at the end of the game.
+        
+        Args:
+            winner (Player): _description_
+            losers (list[Player, ...]): _description_
+            cells_counter (dict[Cell, int]): _description_
+        """
         players = [winner].extend(losers)
         
         # calculate the total width based on the longest name + score
@@ -152,11 +173,12 @@ class GameController:
         # TODO: Print the board on the terminal with blessed or a similar module
         pass
 
-    def _update_board(self, current_player: Player, cells_modified: list[tuple(int, int)] | None) -> None:
+    def _update_board(self, current_player: Player, cells_modified: list[tuple[int, int]] | None) -> None:
         """_summary_
 
         Args:
-            cells_modified (list[tuple): _description_
+            current_player (Player): _description_
+            cells_modified (list[tuple[int, int]): _description_
         """
         if cells_modified:
             # TODO: Update all the cells that were modified
