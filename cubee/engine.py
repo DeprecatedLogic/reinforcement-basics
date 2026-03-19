@@ -47,7 +47,7 @@ class GameEngine:
 
         player = self.model.current_player()
         diff_row, diff_column = row - player.row, column - player.column
-        if (diff_row, diff_column) not in Action:
+        if (diff_row, diff_column) not in Action.all_deltas:
             if DEBUG:
                 print(f"[GameEngine._is_valid_action] Position ({row}, {column}) is invalid")
             return False

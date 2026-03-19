@@ -111,7 +111,7 @@ class Board:
         """
         neighbors = []
 
-        deltas = [action.value for action in tuple(Action)]
+        deltas = Action.all_deltas
         for delta in deltas:
             delta_row, delta_column = delta
             neighbor_row = row + delta_row
@@ -137,7 +137,9 @@ class Board:
     def reset(self) -> None:
         """_summary_
         """
-        self.grid = [[Cell.EMPTY for _ in range(self.columns)] for _ in range(self.rows)]
+        for row in self.grid:
+            for col in row:
+                self.grid[row][col] = Cell.EMPTY
         self.enclosure_modified_cells.clear()
 
     def __str__(self) -> str:

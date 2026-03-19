@@ -9,3 +9,7 @@ class Action(Enum):
     @property
     def delta(self):
         return self.value
+
+    @property
+    def all_deltas(self):
+        return (action.value for action in Action)
