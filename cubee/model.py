@@ -1,6 +1,6 @@
 from random import choice, randint
 from cubee.player import Player
-from cubee.actions import Action
+from cubee.actions import ACTION_DELTAS
 from cubee.cells import Cell
 
 class Board:
@@ -111,8 +111,7 @@ class Board:
         """
         neighbors = []
 
-        deltas = Action.all_deltas
-        for delta in deltas:
+        for delta in ACTION_DELTAS:
             delta_row, delta_column = delta
             neighbor_row = row + delta_row
             neighbor_column = column + delta_column
@@ -138,8 +137,7 @@ class Board:
         """_summary_
         """
         for row in self.grid:
-            for col in row:
-                self.grid[row][col] = Cell.EMPTY
+            row[:] = [Cell.EMPTY] * len(row)
         self.enclosure_modified_cells.clear()
 
     def __str__(self) -> str:

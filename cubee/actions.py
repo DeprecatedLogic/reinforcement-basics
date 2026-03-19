@@ -10,6 +10,4 @@ class Action(Enum):
     def delta(self):
         return self.value
 
-    @property
-    def all_deltas(self):
-        return (action.value for action in Action)
+ACTION_DELTAS = {action.value for action in Action}

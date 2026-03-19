@@ -1,6 +1,7 @@
 from cubee.player import Player
 from cubee.model import GameModel
-from cubee.actions import Action
+from cubee.actions import Action, ACTION_DELTAS
+
 from cubee.cells import Cell
 DEBUG = True # temporary
 
@@ -47,7 +48,7 @@ class GameEngine:
 
         player = self.model.current_player()
         diff_row, diff_column = row - player.row, column - player.column
-        if (diff_row, diff_column) not in Action.all_deltas:
+        if (diff_row, diff_column) not in ACTION_DELTAS:
             if DEBUG:
                 print(f"[GameEngine._is_valid_action] Position ({row}, {column}) is invalid")
             return False
