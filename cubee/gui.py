@@ -58,7 +58,7 @@ class GUI(tk.Frame):
         else:
             button.config(text = label)
 
-    def update_board(self, cells: list[tuple(int, int)], color: Color) -> None:
+    def update_board(self, cells: list[tuple[int, int]], color: Color) -> None:
         for cell in cells:
             row, col = cell
             self.board_buttons[row][col].config(bg = color.value)
