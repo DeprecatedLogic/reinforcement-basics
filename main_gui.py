@@ -20,29 +20,35 @@ class MainView(tk.Frame):
         super().__init__(parent)
         self.parent = parent
         self.players = players
-        self.parent.title("Projet IA")
-        
         self.current_game_frame = None
-        
+        self.init_ui()
+
+    def init_ui(self):
+        self.parent.title("Projet IA")
+        self.parent.geometry("700x500")
+        self.parent.resizable(False, False)
+        self.parent.configure(bg="#2C3E50")  # Dark blue-gray background
+
         self.create_menu_frame()
         self.show_menu()
 
     def create_menu_frame(self):
-        """Create the main meny frame with game buttons and settings."""
-        self.menu_frame = tk.Frame(self.parent, padx=40, pady=40)
-        
-        title = tk.Label(self.menu_frame, text="Projet IA", font=("Arial", 28, "bold"))
+        """Create the main menu frame with game buttons and settings."""
+        self.menu_frame = tk.Frame(self.parent, padx=40, pady=40, bg="#2C3E50")
+
+        title = tk.Label(self.menu_frame, text="Projet IA", font=("Arial", 28, "bold"), bg="#2C3E50", fg="#FFFFFF")
         title.pack(pady=(0, 40))
 
         games = [
             ("Allumettes", self.open_matches_settings),
-            ("Cubeee", self.open_cubee_settings),
+            ("Cubee", self.open_cubee_settings),
             ("PixelKart", self.open_pixelkart_settings)
         ]
 
         for name, command in games:
             btn = tk.Button(self.menu_frame, text=name, font=("Helvetica", 16),
-                            width=15, height=2, command=command)
+                            width=15, height=2, command=command,
+                            bg="#3498DB", fg="#FFFFFF", activebackground="#2980B9", activeforeground="#FFFFFF")
             btn.pack(pady=15)
 
     def show_menu(self):
@@ -54,7 +60,7 @@ class MainView(tk.Frame):
     def hide_menu(self):
         """Hide the menu frame"""
         self.menu_frame.pack_forget()
-    
+
     def start_allumettes(self, player1: Player, player2: Player):
         """
         Start the Matches (Allumettes) game with selected players.
@@ -65,17 +71,17 @@ class MainView(tk.Frame):
         """
         self.hide_menu()
 
-        game_frame = tk.Frame(self.parent)
+        game_frame = tk.Frame(self.parent, bg="#2C3E50")
         game_frame.pack(fill="both", expand=True)
         self.current_game_frame = game_frame
-        
+
         GameController(player1, player2, nb_matches=21, parent=game_frame)
-        
+
         self._add_back_button(game_frame)
 
-    def start_cubeee(self, player1: CubeePlayer, player2: CubeePlayer):
+    def start_cubee(self, player1: CubeePlayer, player2: CubeePlayer):
         """
-        Start the Cubeee game with selected players.
+        Start the Cubee game with selected players.
 
         Args:
             player1: First player instance.
@@ -83,19 +89,21 @@ class MainView(tk.Frame):
         """
         self.hide_menu()
 
-        game_frame = tk.Frame(self.parent)
+        game_frame = tk.Frame(self.parent, bg="#2C3E50")
         game_frame.pack(fill="both", expand=True)
         self.current_game_frame = game_frame
-    
+
         model = CubeeModel(
-            board = CubeeBoard(rows = 15, columns = 10),
-            players = [player1, player2]
+            CubeeBoard(rows = 5, columns = 5),
+            player1,
+            player2
         )
 
         gui = CubeeGUI(parent = game_frame)
         gui.pack(expand = True, fill = "both")
         engine = CubeeEngine(model)
         controller = CubeeController(engine = engine, gui = gui)
+        controller.run()
 
         self._add_back_button(game_frame)
 
@@ -103,10 +111,10 @@ class MainView(tk.Frame):
         """Start the PixelKart game (placeholder implementation)."""
         self.hide_menu()
 
-        game_frame = tk.Frame(self.parent)
+        game_frame = tk.Frame(self.parent, bg="#2C3E50")
         game_frame.pack(fill="both", expand=True)
         self.current_game_frame = game_frame
-    
+
         # TODO: Implement PixelKart game logic here.
 
         self._add_back_button(game_frame)
@@ -124,7 +132,8 @@ class MainView(tk.Frame):
     def _add_back_button(self, game_frame: tk.Frame):
         """Add a 'Back to menu' button to the game frame."""
         back_btn = tk.Button(game_frame, text="Back to menu",
-                             command=lambda: self.back_to_menu(game_frame))
+                             command=lambda: self.back_to_menu(game_frame),
+                             bg="#3498DB", fg="#FFFFFF", activebackground="#2980B9", activeforeground="#FFFFFF")
         back_btn.place(x=20, y=20)
 
     def open_matches_settings(self):
@@ -134,7 +143,7 @@ class MainView(tk.Frame):
         MatchesSettings(self.parent, player_names, self)
 
     def open_cubee_settings(self):
-        """Open the settings dialog for the Cubeee game."""
+        """Open the settings dialog for the Cubee game."""
         available_players = self.players["cubee"]
         player_names = list(available_players.keys())
         CubeeSettings(self.parent, player_names, self)
@@ -155,17 +164,19 @@ class BaseSettings(tk.Toplevel):
         self.main_view = main_view
         self.title(title)
         self.geometry("400x250")
+        self.configure(bg="#2C3E50")
 
         self.p1_var = tk.StringVar(value=player_names[0] if player_names else "")
         self.p2_var = tk.StringVar(value=player_names[1] if len(player_names) > 1 else "")
 
-        tk.Label(self, text="Player 1").pack(pady=5)
+        tk.Label(self, text="Player 1", bg="#2C3E50", fg="#FFFFFF").pack(pady=5)
         tk.OptionMenu(self, self.p1_var, *player_names).pack(pady=5)
 
-        tk.Label(self, text="Player 2").pack(pady=5)
+        tk.Label(self, text="Player 2", bg="#2C3E50", fg="#FFFFFF").pack(pady=5)
         tk.OptionMenu(self, self.p2_var, *player_names).pack(pady=5)
 
-        tk.Button(self, text="Save", command=self.save).pack(pady=20)
+        tk.Button(self, text="Save", command=self.save,
+                  bg="#3498DB", fg="#FFFFFF", activebackground="#2980B9", activeforeground="#FFFFFF").pack(pady=20)
 
     def save(self):
         """Validate and save settings (override in subclasses)."""
@@ -179,7 +190,7 @@ class BaseSettings(tk.Toplevel):
             messagebox.showerror("Error", "Players must be different.")
             return None, None
         return p1_name, p2_name
-    
+
 class MatchesSettings(BaseSettings):
     def __init__(self, parent, player_names: list[str], main_view: MainView):
         super().__init__(parent, player_names, main_view, "Matches Game Settings")
@@ -195,7 +206,7 @@ class MatchesSettings(BaseSettings):
 
 class CubeeSettings(BaseSettings):
     def __init__(self, parent, player_names: list[str], main_view: MainView):
-        super().__init__(parent, player_names, main_view, "Cubeee Game Settings")
+        super().__init__(parent, player_names, main_view, "Cubee Game Settings")
 
     def save(self):
         p1_name, p2_name = self.validate_players()
@@ -203,7 +214,7 @@ class CubeeSettings(BaseSettings):
             return
         player1 = self.main_view.players["cubee"][p1_name]
         player2 = self.main_view.players["cubee"][p2_name]
-        self.main_view.start_cubeee(player1, player2)
+        self.main_view.start_cubee(player1, player2)
         self.destroy()
 
 class PixelKartSettings(BaseSettings):
