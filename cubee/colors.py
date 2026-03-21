@@ -1,7 +1,13 @@
 from enum import Enum
 
 class Color(Enum):
-    EMPTY = "white" # give a color to empty cells
+    """
+    Enumeration of possible colors used in the game.
+
+    Includes a special `EMPTY` color for unclaimed cells.
+    Values are strings representing the color names.
+    """
+    EMPTY = "white"
     ORANGE = "orange"
     RED = "red"
     BLUE = "blue"

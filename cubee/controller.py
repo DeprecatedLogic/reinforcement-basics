@@ -3,22 +3,24 @@ from cubee.engine import GameEngine
 from cubee.gui import GUI
 from cubee.colors import Color
 from cubee.cells import Cell
-
-# TODO: import blessed and complete the CLI print functions
+from cubee.actions import ACTION_DELTAS, KEY_TO_ACTION
+import logging
+logger = logging.getLogger(__name__)
+# TODO: import blessed or similar modules and improve the CLI functions as needed
 
 class GameController:
     """ 
     Orchestrates the interaction between players (Human/AI), engine, and GUI.
     Runs the game loop, forwards actions to the engine, and updates the view when the state changes.
-    (Does not contain game rules.)
     """
 
     def __init__(self, engine: GameEngine, gui: GUI | None = None):
-        """_summary_
+        """
+        Initialize the game controller with engine and optional GUI.
 
         Args:
-            engine (GameEngine): _description_
-            gui (GUI | None, optional): _description_. Defaults to None.
+            engine (GameEngine): The game engine managing rules and state.
+            gui (GUI | None, optional): GUI interface for visual interaction. Defaults to None.
         """
         self.engine = engine
         self.gui = gui
@@ -28,76 +30,132 @@ class GameController:
         """
         Main game loop, blocks until game over.
         """
+        logger.info(f"Starting game in {'GUI' if self.is_gui_mode else 'CLI'} mode")
+
         initial_state = self.engine.get_initial_state()
+
         if self.is_gui_mode:
             self._run_gui_mode(initial_state)
         else:
             self._run_cli_mode(initial_state)
 
     def _run_gui_mode(self, initial_state: dict) -> None:
-        """_summary_
-        
-        Args:
-            initial_state (dict): _description_
         """
+        Set up and run the game in GUI mode, initializing board and player positions.
+
+        Args:
+            initial_state (dict): Initial game state from the engine.
+        """
+        logger.debug("Initializing GUI board")
         self.gui.create_board(
             initial_state["board_rows"],
             initial_state["board_columns"],
             on_cell_click = self._on_cell_clicked
         )
+
+        logger.debug("Binding key events to GUI")
+        self.gui.bind_keys(self._on_keypress)
+
         for player in initial_state["players"]:
+            logger.debug(f"Placing {player.name} at {player.position}")
+
             row, column = player.position
             self.gui.update_cell(row, column, player.name, player.color)
+
         self._update_turn_message(initial_state["current_player"])
     
     def _on_cell_clicked(self, row: int, column: int) -> None:
-        """_summary_
+        """
+        Handle a cell click in the GUI by processing the move through the engine.
 
         Args:
-            row (int): _description_
-            column (int): _description_
+            row (int): Row index of the clicked cell.
+            column (int): Column index of the clicked cell.
         """
+        logger.debug(f"Cell clicked at ({row}, {column})")
+
         response = self.engine.process_move_to_position(row, column)
         if not response["success"]:
+            logger.debug("Move rejected")
             return
+
+        self._handle_move_response(response)
+
+    def _on_keypress(self, event) -> None:
+        """
+        Handle a key press in the GUI, mapping it to a player action.
+
+        Args:
+            event: Tkinter keypress event.
+        """
+        key = event.keysym.lower()
+        logger.debug(f"Key pressed: {key}")
         
+        action_taken = KEY_TO_ACTION.get(key)
+        if action_taken:
+            response = self.engine.process_move(action_taken)
+            if not response["success"]:
+                logger.debug("Move rejected")
+                return
+
+            self._handle_move_response(response)
+
+    def _handle_move_response(self, response: dict) -> None:
+        """
+        Update the GUI after a move has been processed.
+
+        Args:
+            response (dict): Engine response containing move result and modified cells.
+        """
         current_player = response["player"]
+        row, column = current_player.position
         old_row, old_column = response["old_position"]
         self.gui.update_cell(old_row, old_column, "", None)
         self.gui.update_cell(row, column, current_player.name, current_player.color)
         self.gui.update_board(response["enclosure_modified_cells"], current_player.color)
-       
+        logger.debug(f"{current_player.name} moved to ({row}, {column})")
+
         self._update_turn_message(response["next_player"])
 
         if self.engine.is_game_over():
-            self.gui.end_game(button_command = self.restart_game)
+            logger.info("Game over (GUI)")
+            self.gui.end_game(button_command=self.restart_game)
             self._show_game_over_message()
 
     def _update_turn_message(self, current_player: Player) -> None:
-        """_summary_
-        
+        """
+        Update the turn message in the GUI to show which player's turn it is.
+
         Args:
-            current_player (Player): _description_
+            current_player (Player): Player whose turn it currently is.
         """
         name = current_player.name
         message = f"It is {name}'{'s' if not name.lower().endswith('s') else ''} turn."
         self.gui.update_turn_message(message)
 
     def _show_game_over_message(self) -> None:
-        """_summary_"""
+        """
+        Display the final game over message in the GUI with the winner.
+        """
         game_over_data = self.engine.get_competitive_data()
         winner = game_over_data["winner"]
+        
+        logger.info(f"Winner: {winner.name if winner else 'None'}")
         message = f"Game over! {winner.name} wins!" if winner else "Draw?"
         self.gui.update_turn_message(message)
 
     def _run_cli_mode(self, initial_state: dict) -> None:
-        """_summary_
-        
-        Args:
-            initial_state (dict): _description_
         """
+        Run the game loop in CLI mode, printing board and turn messages.
+
+        Args:
+            initial_state (dict): Initial game state from the engine.
+        """
+        logger.info("Running CLI game loop")
+
         current_player = initial_state["current_player"]
         while not self.engine.is_game_over():
+            logger.debug(f"Turn: {current_player.name}")
             self._print_board()
             self._print_turn(current_player)
             
@@ -106,6 +164,8 @@ class GameController:
                 response = self.engine.process_move(action_taken)
                 if response["success"]:
                     break
+                else:
+                    logger.debug(f"{current_player.name} attempted invalid move: {action_taken}")
 
             self._update_board(response["next_player"], response["enclosure_modified_cells"])
             current_player = response["next_player"]
@@ -118,33 +178,44 @@ class GameController:
         winner.win()
         for player in losers:
             player.lose()
-        
+
+        logger.info("Game over (CLI)")
+        logger.info(f"Winner: {winner.name}")
         self._print_game_over(winner, losers, cells_counter)
 
     def _print_turn(self, current_player: Player) -> None:
-        """_summary_
-        
-        Args:
-            current_player (Player): _description_
         """
+        Print a message indicating whose turn it is in CLI mode.
+
+        Args:
+            current_player (Player): Player whose turn it currently is.
+        """
+        logger.debug(f"Displaying turn for {current_player.name}")
+
         name = current_player.name
         message = f"It is {name}'{'s' if not name.lower().endswith('s') else ''} turn."
         print(message)
 
     def restart_game(self):
-        """_summary_"""
+        """
+        Reset the game state and start a new game loop.
+        """
+        logger.info("Restarting game")
         self.engine.reset_game_state()
         self.run()
 
     def _print_game_over(self, winner: Player, losers: list[Player], cells_counter: dict[Cell, int]) -> None:
-        """Prints a centered leaderboard at the end of the game.
-        
-        Args:
-            winner (Player): _description_
-            losers (list[Player, ...]): _description_
-            cells_counter (dict[Cell, int]): _description_
         """
-        players = [winner].extend(losers)
+        Print the final leaderboard and scores at the end of the game.
+
+        Args:
+            winner (Player): Player who won the game.
+            losers (list[Player, ...]): Players who lost.
+            cells_counter (dict[Cell, int]): Number of cells owned by each player.
+        """
+        logger.debug("Printing leaderboard")
+        
+        players = [winner] + losers
         
         # calculate the total width based on the longest name + score
         width_name = max(len(player.name) for player in players)
@@ -168,22 +239,22 @@ class GameController:
 
         print("=" * total_width)
 
-    def _print_board(self):
-        """_summary_"""
-        # TODO: Print the board on the terminal with blessed or a similar module
-        pass
+    def _print_board(self) -> None:
+        """
+        Print a simple CLI representation of the board.
+        """
+        # TODO: Enhance CLI board with player colors, symbols, or partial updates
+        board = self.engine.model.board
+        print(board) # uses the board's __str__ method
 
     def _update_board(self, current_player: Player, cells_modified: list[tuple[int, int]] | None) -> None:
-        """_summary_
+        """
+        Update the CLI board after a move. Currently prints the full board.
 
         Args:
-            current_player (Player): _description_
-            cells_modified (list[tuple[int, int]): _description_
+            current_player (Player): Player who just moved.
+            cells_modified (list[tuple[int, int]] | None): Cells affected by enclosure.
         """
-        if cells_modified:
-            # TODO: Update all the cells that were modified
-            pass
-        else:
-            # TODO: Update only the current player's cell
-            pass
+        # TODO: Improve by updating only modified cells + adding colors (or player initials/emoticons?)
+        self._print_board()
         

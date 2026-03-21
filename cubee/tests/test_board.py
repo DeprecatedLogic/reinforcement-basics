@@ -14,13 +14,13 @@ def test_invalid_rows():
     with pytest.raises(ValueError) as exc_info:
         Board(0, 5)
 
-    assert "Rows value should be bigger than 0!" in str(exc_info.value)
+    assert "Rows value must be bigger than 0!" in str(exc_info.value)
 
 def test_invalid_columns():
     with pytest.raises(ValueError) as exc_info:
         Board(5, 0)
 
-    assert "Columns value should be bigger than 0!" in str(exc_info.value)
+    assert "Columns value must be bigger than 0!" in str(exc_info.value)
 
 def test_size():
     board = Board(10, 5)

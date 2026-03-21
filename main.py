@@ -6,8 +6,28 @@ from cubee.player import Human as CubeeHuman, Player as CubeePlayer
 from main_gui import MainView
 import tkinter as tk
 from matches.ai_utils import training, compare_ai
+import logging
+import argparse
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Reinforcement Basics")
+    parser.add_argument(
+        "-l", "--log",
+        default="INFO",
+        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+        help="Set logging level"
+    )
+    args = parser.parse_args()
+
+    log_level = getattr(logging, args.log.upper(), logging.INFO)
+
+    logging.basicConfig(
+        filename=".log",
+        filemode="w",
+        level=log_level,
+        format="%(asctime)s [%(levelname)s] (%(filename)s:%(funcName)s:%(lineno)d) %(message)s"
+    )
+
     players = {
         "matches": {
             "Player 1": Human("Player 1"),
