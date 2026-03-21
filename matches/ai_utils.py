@@ -1,5 +1,5 @@
-from matches.game_model import GameModel
 from matches.player import AI
+from matches.game_model import GameModel
 
 def training(ai1, ai2, nb_games, nb_epsilon, nb_matches = 12):
     # Train the AIs @ai1 and @ai2 during @nb_games games
