@@ -20,8 +20,8 @@ The core of this project is the learning AI. Unlike the simplified AI (pre-defin
 The agent tries random moves to discover the game rules, receives positive feedback for winning (or even fast times) and negative feedback for losing (or wrong moves) which then help the agent update its internal **Q-table** or **value function** after every game to *reinforce* successful strategies.
 
 ## Prerequisites
-- Make sure you have git installed.
-- Make sure you have Python version 3.11 or newer installed.  
+- Ensure Git is installed.
+- Ensure Python version 3.11 or newer installed.  
   For Windows, you can find the official download page for Python [here](https://www.python.org/downloads/).  
 **Note:** If you want to avoid using git, you can also download the repository as a *zip* file and skip step 1 in the [Getting Started](#getting-started) section.
 
@@ -52,7 +52,7 @@ python main.py
 ```
 
 ## Author Notes
-*My AI learns from its mistakes; I just drink coffee and hope the code works.* - [ItzKarizma](https://github.com/ItzKarizma)  
+*My AI learns from its mistakes; I just drink coffee and hope the code works.* - [DeprecatedLogic](https://github.com/DeprecatedLogic)  
 *Watched an AI learn faster than me. I’m fine. Totally fine.* - [EgoChaxs](https://github.com/EgoChaxs)
 
 ## License
