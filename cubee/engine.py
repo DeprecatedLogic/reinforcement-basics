@@ -138,83 +138,70 @@ class GameEngine:
             return False
         
         # If the above checks failed to return False, we return True
-        # NOTE: temporarily False for debugging
-        return False #True
+        return True
 
     def _enclosure(self) -> list[tuple[int, int]]:
         """
-        Returns the list of EMPTY cells that should now belong to the current player
-        because no opponent can reach them anymore (they are fully enclosed
-        by the current player's pieces and/or board edges).
-        
-        Does NOT modify the board.
+        Returns EMPTY cells that are NOT reachable by any opponent.
+        These are enclosed and should be captured by the current player.
         """
         board = self.model.board
-        current_player_color = self.model.current_player().cell
-        
-        # Get all opponents colors
-        opponent_colors = set()
-        for opponent in self.model.get_opponents():
-            if opponent.cell is not None:
-                opponent_colors.add(opponent.cell)
 
-        # Error handling (no opponents present)
+        from collections import deque
+
+        # Get opponent colors
+        opponent_colors = {
+            opponent.cell
+            for opponent in self.model.get_opponents()
+            if opponent.cell is not None
+        }
+
         if not opponent_colors:
             return []
 
-        visited = set()
-        captured_cells = []  #list to return
+        reachable_by_opponent = set()
+        queue = deque()
 
-        # We need queue? Zzzz
-        from collections import deque
-
+        # Seed BFS with all opponent cells because we can technically start from many nodes
         for row in range(board.rows):
-            for column in range(board.columns):
-                current_position = (row, column)
+            for col in range(board.columns):
+                pos = (row, col)
+                if board[pos] in opponent_colors:
+                    queue.append(pos)
+                    reachable_by_opponent.add(pos)
 
-                # Skip if we already visited or it is not empty
-                if board[current_position] != Cell.EMPTY:
+        # BFS expansion
+        while queue:
+            row, column = queue.popleft()
+
+            for delta_r, delta_c in ACTION_DELTAS:
+                neighbor_r, neighbor_c = row + delta_r, column + delta_c
+
+                if not board.is_within_bounds(neighbor_r, neighbor_c):
                     continue
-                if current_position in visited:
+
+                neighbor = (neighbor_r, neighbor_c)
+
+                # Avoid revisiting (prevent infinite loops/redundant work)
+                if neighbor in reachable_by_opponent:
                     continue
 
-                # Found start of new connected area
-                cells_in_this_region = []
-                bordering_player_colors = set()
+                neighbor_cell = board[neighbor]
 
-                queue = deque([current_position])
-                visited.add(current_position)
+                # Opponent can move through EMPTY or their own cells
+                if neighbor_cell == Cell.EMPTY or neighbor_cell in opponent_colors:
+                    reachable_by_opponent.add(neighbor)
+                    queue.append(neighbor)
 
-                while queue:
-                    current_row, current_column = queue.popleft()
-                    cells_in_this_region.append((current_row, current_column))
+        # Any EMPTY not reachable is enclosed
+        captured_cells = []
 
-                    # Check all four possible neighbors
-                    for delta_row, delta_column in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
-                        neighbor_row = current_row + delta_row
-                        neighbor_column = current_column + delta_column
-
-                        # Outside the board, edge helps enclosure, so skip
-                        if not board.is_within_bounds(neighbor_row, neighbor_column):
-                            continue
-
-                        neighbor_position = (neighbor_row, neighbor_column)
-                        neighbor_value = board[neighbor_position]
-
-                        if neighbor_value == Cell.EMPTY:
-                            # Still empty, continue exploring this region
-                            if neighbor_position not in visited:
-                                visited.add(neighbor_position)
-                                queue.append(neighbor_position)
-                        else:
-                            # Found a player's cell next to us, remember which player
-                            bordering_player_colors.add(neighbor_value)
-
-                # After exploring the whole connected empty area:
-                # If NO opponent color borders this region → it is captured
-                opponents_touching = bordering_player_colors & opponent_colors
-                if len(opponents_touching) == 0:
-                    captured_cells.extend(cells_in_this_region)
+        # Add all empty cells not reachable by opponent
+        for row in range(board.rows):
+            for col in range(board.columns):
+                pos = (row, col)
+                if board[pos] == Cell.EMPTY and pos not in reachable_by_opponent:
+                    captured_cells.append(pos)
 
         return captured_cells
 
