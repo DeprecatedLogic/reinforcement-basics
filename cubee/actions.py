@@ -45,3 +45,10 @@ Mapping of keyboard inputs to actions.
 
 Supports both WASD keys and arrow keys for movement.
 """
+
+ACTION_TO_INDEX = {
+    Action.UP: 0,
+    Action.DOWN: 1,
+    Action.LEFT: 2,
+    Action.RIGHT: 3
+}

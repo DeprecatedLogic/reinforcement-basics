@@ -1,9 +1,9 @@
-from cubee.player import Human, Player
+from cubee.player import Player
+from cubee.ai import AI
 from cubee.engine import GameEngine
 from cubee.gui import GUI
-from cubee.colors import Color
 from cubee.cells import Cell
-from cubee.actions import ACTION_DELTAS, KEY_TO_ACTION
+from cubee.actions import KEY_TO_ACTION
 import logging
 logger = logging.getLogger(__name__)
 # TODO: import blessed or similar modules and improve the CLI functions as needed
@@ -80,6 +80,8 @@ class GameController:
             return
 
         self._handle_move_response(response)
+        if isinstance(response["next_player"], AI):
+            self._handle_ai_turn(response["next_player"])
 
     def _on_keypress(self, event) -> None:
         """
@@ -99,6 +101,8 @@ class GameController:
                 return
 
             self._handle_move_response(response)
+            if isinstance(response["next_player"], AI):
+                self._handle_ai_turn(response["next_player"])
 
     def _handle_move_response(self, response: dict) -> None:
         """
@@ -121,6 +125,37 @@ class GameController:
             logger.info("Game over (GUI)")
             self.gui.end_game(button_command=self.restart_game)
             self._show_game_over_message()
+
+    def _handle_ai_turn(self, current_player: AI):
+        """_summary_
+
+        Args:
+            current_player (Player): _description_
+
+        Raises:
+            Exception: _description_
+        """
+        valid_actions = self.engine.get_valid_actions()
+        board = self.engine.model.board
+        
+        old_nb_cells = board.count_cells()[current_player.cell]
+
+        action = current_player.play(self.engine.model, valid_actions)
+
+        response = self.engine.process_move(action)
+        if response["success"]:
+            self._handle_move_response(response)
+        else:
+            logger.error("AI move was rejected when only valid actions were given")
+            raise Exception("AI move rejected")
+
+        new_nb_cells = board.count_cells()[current_player.cell]
+
+        current_player.last_reward = self.engine.compute_reward(old_nb_cells, new_nb_cells, action, response)
+        
+        if isinstance(response["next_player"], AI):
+            self._handle_ai_turn(response["next_player"])
+        
 
     def _update_turn_message(self, current_player: Player) -> None:
         """
@@ -153,6 +188,7 @@ class GameController:
         """
         logger.info("Running CLI game loop")
 
+        valid_actions = self.engine.get_valid_actions()
         current_player = initial_state["current_player"]
         while not self.engine.is_game_over():
             logger.debug(f"Turn: {current_player.name}")
@@ -160,7 +196,7 @@ class GameController:
             self._print_turn(current_player)
             
             while True:
-                action_taken = current_player.play()
+                action_taken = current_player.play(self.engine.model, valid_actions)
                 response = self.engine.process_move(action_taken)
                 if response["success"]:
                     break

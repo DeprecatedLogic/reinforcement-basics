@@ -1,11 +1,23 @@
+from cubee.colors import Color
+from cubee.player import Human as CubeeHuman, Player as CubeePlayer
+from cubee.ai import AI as CubeeAI
+from cubee. cells import Cell
+from cubee.controller import GameController
+from cubee.qtable_dao import QTableDAO
+from cubee.qtable import SHARED_QTABLE
+from cubee.ai_training import training as cubeetraining
+
+#MATCHES
 from matches.player import Player, Human, AI
 from matches.game_controller import GameController
 from matches.game_model import GameModel
-from cubee.colors import Color
-from cubee.player import Human as CubeeHuman, Player as CubeePlayer
+from matches.ai_utils import training, compare_ai
+
+#TKINTER
 from main_gui import MainView
 import tkinter as tk
-from matches.ai_utils import training, compare_ai
+
+#LOGGING
 import logging
 import argparse
 
@@ -39,7 +51,9 @@ if __name__ == "__main__":
         },
         "cubee": {
             "Player 1": CubeeHuman("Player 1", Color.RED),
-            "Player 2": CubeeHuman("Player 2", Color.BLUE)
+            "Player 2": CubeeHuman("Player 2", Color.BLUE),
+            "Ai1": CubeeAI("Ai1", Color.GREEN),
+            "Ai2": CubeeAI("Ai2", Color.ORANGE)
         },
         "pixelkart": {
             # TODO: Define PixelKart players here.
@@ -54,6 +68,11 @@ if __name__ == "__main__":
 
     # bobby.download("bobby_params")
     #bobby.load("bobby_params.json")
+
+    ai1 = players["cubee"]["Ai1"]
+    ai2 = players["cubee"]["Ai2"]
+
+    cubeetraining(ai1, ai2, epochs=10, episodes=10000)
 
     root = tk.Tk()
     app = MainView(root, players=players)

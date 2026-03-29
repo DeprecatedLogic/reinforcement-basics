@@ -94,7 +94,7 @@ class MainView(tk.Frame):
         self.current_game_frame = game_frame
 
         model = CubeeModel(
-            CubeeBoard(rows = 5, columns = 5),
+            CubeeBoard(rows = 10, columns = 10),
             player1,
             player2
         )

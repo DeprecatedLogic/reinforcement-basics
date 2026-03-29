@@ -240,18 +240,3 @@ class Human(Player):
             except Exception as e:
                 logger.error(f"Unexpected error in Human.play: {e}")
                 print(f"[Human.play] An unexpected error occured: {e}")
-
-class AI(Player):
-    """
-    Automated player controlled by AI logic.
-    """
-
-    def __init__(self, name: str, color: Color) -> None:
-        """
-        Initialize an AI player.
-
-        Args:
-            name (str): Player name.
-            color (Color): Player color.
-        """
-        super().__init__(name, color)

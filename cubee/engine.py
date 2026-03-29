@@ -1,4 +1,3 @@
-from cubee.player import Player
 from cubee.model import GameModel
 from cubee.actions import Action, ACTION_DELTAS
 from cubee.cells import Cell
@@ -67,6 +66,26 @@ class GameEngine:
         
         return True
         
+    def get_valid_actions(self) -> list[Action]:
+        """_summary_
+        
+        Returns:
+            list[Action]: _description_
+        """
+        valid_actions = []
+        current_player = self.model.current_player()
+        
+        for action in tuple(Action):
+            # Relative position
+            delta_row, delta_column = action.delta
+            row = current_player.row + delta_row
+            column = current_player.column + delta_column
+            
+            if self._is_valid_position(row, column):
+                valid_actions.append(action)
+        
+        return valid_actions
+
     def process_move_to_position(self, row: int, column: int) -> dict:
         """
         Process a move for the current player to a specific board position.
@@ -137,7 +156,7 @@ class GameEngine:
             logger.debug("Enclosure detected, running BFS")
             enclosure_modified_cells = self._enclosure()
         
-        self.next_player()
+        self._next_player()
         return enclosure_modified_cells
 
     def _check_enclosure(self, excluded_position: tuple[int, int], position: tuple[int, int], original_cell: Cell) -> bool:
@@ -247,7 +266,7 @@ class GameEngine:
         logger.debug(f"Captured {len(captured_cells)} cells via enclosure")
         return captured_cells
 
-    def next_player(self) -> None:
+    def _next_player(self) -> None:
         """
         Advance the turn to the next player in the game model.
         """
@@ -315,3 +334,26 @@ class GameEngine:
         """
         logger.info("Resetting game state")
         self.model.reset()
+
+    #AI reward computing
+    def compute_reward(self,old_nb_cells: int, new_nb_cells: int, action: Action, response):
+        reward = new_nb_cells - old_nb_cells
+
+        # Enclosure bonuses
+        board_size = self.model.board.columns * self.model.board.rows
+        ratio = (new_nb_cells - old_nb_cells) / board_size
+        enclosure_reward_value = int(50 * ratio) # For natural scaling instead of random numbers
+
+        if len(response["enclosure_modified_cells"]) > 0:
+            reward += enclosure_reward_value
+
+        # End-game bonuses
+        if self.is_game_over():
+            winner = self.get_competitive_data()['winner']
+
+            if winner == response['player']:
+                reward += 10
+            else:
+                reward -= 10
+
+        return reward
