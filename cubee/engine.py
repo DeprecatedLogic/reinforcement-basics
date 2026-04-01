@@ -33,7 +33,8 @@ class GameEngine:
             "board_rows": self.model.board.rows,
             "board_columns": self.model.board.columns,
             "players": self.model.players,
-            "current_player": self.model.current_player()
+            "current_player": self.model.current_player()#,
+            #"cells_counter": self.model.board.count_cells()
         }
 
     def _is_valid_position(self, row: int, column: int) -> bool:

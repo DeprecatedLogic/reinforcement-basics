@@ -70,10 +70,20 @@ if __name__ == "__main__":
     #bobby.load("bobby_params.json")
 
     ai1 = players["cubee"]["Ai1"]
+    ai1.epsilon = 0
     ai2 = players["cubee"]["Ai2"]
 
-    cubeetraining(ai1, ai2, epochs=10, episodes=10000)
+    #cubeetraining(ai1, ai2, epochs=50, episodes=10000)
+    
+    
+    SHARED_QTABLE = QTableDAO.load("cubee/Qtables/qtable_epoch_52.pkl")
+    if len(SHARED_QTABLE.storage) == 0:
+        print("ERROR loading file")
+        exit(1)
+
+    print(SHARED_QTABLE.storage)
 
     root = tk.Tk()
     app = MainView(root, players=players)
     root.mainloop()
+    

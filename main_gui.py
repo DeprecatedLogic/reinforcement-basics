@@ -7,6 +7,8 @@ from cubee.engine import GameEngine as CubeeEngine
 from cubee.gui import GUI as CubeeGUI
 from cubee.model import GameModel as CubeeModel, Board as CubeeBoard
 from cubee.player import Player as CubeePlayer, Human as CubeeHuman
+import logging
+logger = logging.getLogger(__name__)
 
 class MainView(tk.Frame):
     def __init__(self, parent, players: dict[dict[Player]]):
@@ -94,7 +96,7 @@ class MainView(tk.Frame):
         self.current_game_frame = game_frame
 
         model = CubeeModel(
-            CubeeBoard(rows = 10, columns = 10),
+            CubeeBoard(rows = 5, columns = 5),
             player1,
             player2
         )

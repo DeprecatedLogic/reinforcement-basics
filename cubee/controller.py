@@ -63,6 +63,9 @@ class GameController:
             self.gui.update_cell(row, column, player.name, player.color)
 
         self._update_turn_message(initial_state["current_player"])
+
+        if isinstance(response["next_player"], AI):
+            self._handle_ai_turn(response["next_player"])
     
     def _on_cell_clicked(self, row: int, column: int) -> None:
         """
@@ -155,7 +158,6 @@ class GameController:
         
         if isinstance(response["next_player"], AI):
             self._handle_ai_turn(response["next_player"])
-        
 
     def _update_turn_message(self, current_player: Player) -> None:
         """
@@ -192,18 +194,21 @@ class GameController:
         current_player = initial_state["current_player"]
         while not self.engine.is_game_over():
             logger.debug(f"Turn: {current_player.name}")
-            self._print_board()
+            #self._print_board() # disabled temporary
             self._print_turn(current_player)
             
-            while True:
-                action_taken = current_player.play(self.engine.model, valid_actions)
-                response = self.engine.process_move(action_taken)
-                if response["success"]:
-                    break
-                else:
-                    logger.debug(f"{current_player.name} attempted invalid move: {action_taken}")
+            if isinstance(current_player, AI):
+                response = self._handle_ai_turn_cli(current_player)
+            else:
+                while True:
+                    action_taken = current_player.play(self.engine.model, valid_actions)
+                    response = self.engine.process_move(action_taken)
+                    if response["success"]:
+                        break
+                    else:
+                        logger.debug(f"{current_player.name} attempted invalid move: {action_taken}")
 
-            self._update_board(response["next_player"], response["enclosure_modified_cells"])
+            #self._update_board(response["next_player"], response["enclosure_modified_cells"])
             current_player = response["next_player"]
 
         result = self.engine.get_competitive_data()
@@ -217,7 +222,25 @@ class GameController:
 
         logger.info("Game over (CLI)")
         logger.info(f"Winner: {winner.name}")
-        self._print_game_over(winner, losers, cells_counter)
+        #self._print_game_over(winner, losers, cells_counter)
+
+    def _handle_ai_turn_cli(self, current_player: AI):
+        valid_actions = self.engine.get_valid_actions()
+        board = self.engine.model.board
+        
+        old_nb_cells = board.count_cells()[current_player.cell]
+
+        action = current_player.play(self.engine.model, valid_actions)
+
+        response = self.engine.process_move(action)
+        if not response["success"]:
+            logger.error("AI move was rejected when only valid actions were given")
+            raise Exception("AI move rejected")
+
+        new_nb_cells = board.count_cells()[current_player.cell]
+
+        current_player.last_reward = self.engine.compute_reward(old_nb_cells, new_nb_cells, action, response)
+        return response
 
     def _print_turn(self, current_player: Player) -> None:
         """

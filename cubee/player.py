@@ -191,6 +191,16 @@ class Player:
         
         self.row, self.column = value
 
+    def win(self):
+        """_summary_
+        """
+        self.nb_wins += 1
+
+    def lose(self):
+        """_summary_
+        """
+        self.nb_losses += 1
+
     def __str__(self) -> str:
         """
         Return a string representation of the player.

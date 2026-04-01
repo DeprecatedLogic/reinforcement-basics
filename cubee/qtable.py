@@ -1,3 +1,6 @@
+import logging
+logger = logging.getLogger(__name__)
+
 class QTable:
     def __init__(self, preloaded_table = None, num_actions: int = 4, default_value: float = 0.0):
         self.storage = preloaded_table if preloaded_table is not None else {}
