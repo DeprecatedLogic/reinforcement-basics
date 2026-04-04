@@ -14,6 +14,7 @@ class GUI(tk.Frame):
 
         # TODO: use the Color class for BG/FG (?)
         super().__init__(parent)
+        self.parent = parent
         self.configure(bg="#2C3E50")
         
         self.board_frame = tk.Frame(self, bg="#2C3E50")

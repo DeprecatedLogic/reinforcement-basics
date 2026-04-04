@@ -23,7 +23,7 @@ class GameEngine:
         """
         self.model = model
 
-    def get_initial_state(self) -> dict:
+    def get_game_state(self) -> dict:
         """
         Retrieve the initial state of the game for GUI/CLI setup.
 
@@ -31,10 +31,14 @@ class GameEngine:
             dict: Contains board dimensions, list of players, and the current active player.
         """
         return {
+            "board_grid": self.model.board.grid,
             "board_rows": self.model.board.rows,
             "board_columns": self.model.board.columns,
-            "players": self.model.players,
-            "current_player": self.model.current_player()
+            "current_player": self.model.current_player(),
+            "opponents": self.model.get_opponents(),
+            "next_player": self.next_player(apply=False),
+            "valid_actions": self.get_valid_actions(),
+            #"is_game_over": self.is_game_over()
         }
 
     def _is_valid_position(self, row: int, column: int) -> bool:
@@ -67,6 +71,26 @@ class GameEngine:
         
         return True
         
+    def get_valid_actions(self) -> list[Action]:
+        """_summary_
+        
+        Returns:
+            list[Action]: _description_
+        """
+        valid_actions = []
+        current_player = self.model.current_player()
+        
+        for action in tuple(Action):
+            # Relative position
+            delta_row, delta_column = action.delta
+            row = current_player.row + delta_row
+            column = current_player.column + delta_column
+            
+            if self._is_valid_position(row, column):
+                valid_actions.append(action)
+        
+        return valid_actions
+
     def process_move_to_position(self, row: int, column: int) -> dict:
         """
         Process a move for the current player to a specific board position.
@@ -88,14 +112,22 @@ class GameEngine:
         original_cell = self.model.board[row, column]
 
         logger.debug(f"{current_player.name} moves from {original_position} to ({row}, {column})")
-        self.model.assign_position(current_player, (row, column))
         
+        nb_cells_gained = 0
+        if self.model.assign_position(current_player, (row, column)):
+            nb_cells_gained += 1
+        
+        enclosure_modified_cells = self._post_move_updates(original_position, original_cell)
+        nb_cells_gained += len(enclosure_modified_cells)
+
         return {
             "success": True,
-            "player": current_player,
+            "old_player": current_player,
             "old_position": original_position,
-            "enclosure_modified_cells": self._post_move_updates(original_position, original_cell),
-            "next_player": self.model.current_player()
+            "enclosure_modified_cells": enclosure_modified_cells,
+            "current_player": self.model.current_player(),
+            "nb_cells_gained": nb_cells_gained,
+            "is_game_over": self.is_game_over()
         }
     
     def process_move(self, action_taken: Action) -> dict:
@@ -247,18 +279,26 @@ class GameEngine:
         logger.debug(f"Captured {len(captured_cells)} cells via enclosure")
         return captured_cells
 
-    def next_player(self) -> None:
+    def next_player(self, apply: bool = True) -> None | bool:
         """
         Advance the turn to the next player in the game model.
+
+        Args:
+            apply (bool): If False, returns the next player,  
+                otherwise sets the next player and returns None.
+        
+        Returns:
+            bool: If apply is True, else None.
         """
         if len(self.model.players) == 0:
             logger.critical("No players available when trying to switch turns")
             raise ZeroDivisionError("There are no players available in self.model.players")
-
-        self.model.current_player_index = (
-            self.model.current_player_index + 1
-        ) % len(self.model.players)
-
+        
+        index = (self.model.current_player_index + 1) % len(self.model.players)
+        if not apply:
+            return index
+        
+        self.model.current_player_index = index
         logger.debug(f"Next player: {self.model.current_player().name}")
 
     def is_game_over(self) -> bool:
@@ -286,9 +326,11 @@ class GameEngine:
                 - 'losers': Players with fewer cells, in ascending order.
                 - 'cells_counter': Mapping of Cell -> number of occurrences on the board.
         """
-        
+        temp_level = logger.level
+        logger.setLevel(logging.WARNING)
         if not self.is_game_over():
             logger.warning("Requested competitive data before game ended")
+        logger.setLevel(temp_level)
 
         cells_counter = self.model.board.count_cells()
         

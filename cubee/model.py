@@ -293,20 +293,24 @@ class GameModel:
             self.cell_to_player[cells[i]] = self.players[i]
             logger.debug(f"{self.players[i].name} assigned cell {cells[i].name}")
 
-    def assign_position(self, player: Player, position: tuple[int, int]) -> None:
+    def assign_position(self, player: Player, position: tuple[int, int]) -> bool:
         """
         Move a player to a new position on the board and record the action.
 
         Args:
             player (Player): The player to move.
             position (tuple[int, int]): Target (row, column) coordinates.
+
+        Returns:
+            bool: True if the new position was an empty cell, otherwise False.
         """
         logger.debug(f"{player.name} moving to {position}")
-
+        is_empty = self.board[position] == Cell.EMPTY
         self.board[position] = player.cell
         self.actions_history.setdefault(player.cell, [])
         self.actions_history[player.cell].append(player.position)
         player.position = position
+        return is_empty
 
     def current_player(self) -> Player:
         """
@@ -331,12 +335,12 @@ class GameModel:
         self._assign_initial_positions()
         self._assign_initial_turn()
 
-    def get_opponents(self) -> list[Player]:
+    def get_opponents(self) -> tuple[Player]:
         """
-        Get a list of all players except the current player.
+        Get a tuple containing all players except the current player.
 
         Returns:
-            list[Player]: Opponents of the current player.
+            tuple[Player]: Opponents of the current player.
         """
-        return [player for player in self.players if player != self.current_player()]
+        return tuple(player for player in self.players if player != self.current_player())
     
