@@ -1,4 +1,4 @@
-from cubee.player import Human, Player
+from cubee.player import Human, Player, AI
 from cubee.engine import GameEngine
 from cubee.gui import GUI
 from cubee.colors import Color
@@ -23,46 +23,59 @@ class GameController:
             gui (GUI | None, optional): GUI interface for visual interaction. Defaults to None.
         """
         self.engine = engine
-        self.gui = gui
-        self.is_gui_mode = gui is not None
+        self.gui: GUI = gui
+        self.gui_locked = False
         
-    def run(self) -> None:
+    def run(self, efficiency_level: int = 0) -> None:
         """
         Main game loop, blocks until game over.
+
+        Args:
+            efficieny_level (int): Only for CLI, usually used for increased performance in AI training.  
+                0: Default  
+                1: No game board output  
+                2: No player turn message  
+                3: No leaderboard output when the game's over
         """
-        logger.info(f"Starting game in {'GUI' if self.is_gui_mode else 'CLI'} mode")
+        logger.info(f"Starting game in {'GUI' if self.gui else 'CLI'} mode")
 
-        initial_state = self.engine.get_initial_state()
+        game_state = self.engine.get_game_state()
 
-        if self.is_gui_mode:
-            self._run_gui_mode(initial_state)
+        if self.gui:
+            self._run_gui_mode(game_state)
         else:
-            self._run_cli_mode(initial_state)
+            self._run_cli_mode(game_state, efficiency_level)
 
-    def _run_gui_mode(self, initial_state: dict) -> None:
+    def _run_gui_mode(self, game_state: dict) -> None:
         """
         Set up and run the game in GUI mode, initializing board and player positions.
 
         Args:
-            initial_state (dict): Initial game state from the engine.
+            game_state (dict): Initial game state from the engine.
         """
         logger.debug("Initializing GUI board")
         self.gui.create_board(
-            initial_state["board_rows"],
-            initial_state["board_columns"],
+            game_state["board_rows"],
+            game_state["board_columns"],
             on_cell_click = self._on_cell_clicked
         )
 
         logger.debug("Binding key events to GUI")
         self.gui.bind_keys(self._on_keypress)
 
-        for player in initial_state["players"]:
+        players = list(game_state["opponents"])
+        players.append(game_state["current_player"])
+        for player in players:
             logger.debug(f"Placing {player.name} at {player.position}")
 
             row, column = player.position
             self.gui.update_cell(row, column, player.name, player.color)
 
-        self._update_turn_message(initial_state["current_player"])
+        self._update_turn_message(game_state["current_player"])
+
+        if isinstance(game_state["current_player"], AI):
+            self.gui_locked = True
+            self._handle_ai_turn(gui_event=True)
     
     def _on_cell_clicked(self, row: int, column: int) -> None:
         """
@@ -73,6 +86,9 @@ class GameController:
             column (int): Column index of the clicked cell.
         """
         logger.debug(f"Cell clicked at ({row}, {column})")
+        if self.gui_locked:
+            logger.debug("GUI is locked, cell click event discarded")
+            return
 
         response = self.engine.process_move_to_position(row, column)
         if not response["success"]:
@@ -80,6 +96,8 @@ class GameController:
             return
 
         self._handle_move_response(response)
+        if isinstance(response["current_player"], AI) and not response["is_game_over"]:
+            self._handle_ai_turn(gui_event=True)
 
     def _on_keypress(self, event) -> None:
         """
@@ -90,16 +108,46 @@ class GameController:
         """
         key = event.keysym.lower()
         logger.debug(f"Key pressed: {key}")
-        
+        if self.gui_locked:
+            logger.debug("GUI is locked, keypress event discarded")
+            return
+
         action_taken = KEY_TO_ACTION.get(key)
         if action_taken:
+
             response = self.engine.process_move(action_taken)
             if not response["success"]:
                 logger.debug("Move rejected")
                 return
 
             self._handle_move_response(response)
+            if isinstance(response["current_player"], AI) and not response["is_game_over"]:
+                self._handle_ai_turn(gui_event=True)    
 
+    def _handle_ai_turn(self, gui_event: bool = False) -> dict:
+        """_summary_
+
+        Returns:
+            dict: _description_
+        """
+        game_state = self.engine.get_game_state()
+        ai_player: AI = game_state["current_player"]
+
+        action_taken = ai_player.play(game_state)
+        response = self.engine.process_move(action_taken)
+        
+        ai_player.compute_reward(game_state, action_taken, response)
+
+        if gui_event:
+            self._handle_move_response(response)
+
+            if not response["is_game_over"] and isinstance(response["current_player"], AI):
+                self.gui.parent.after(1000, lambda: self._handle_ai_turn(gui_event=True))
+            else:
+                self.gui_locked = False
+
+        return response # required for CLI
+    
     def _handle_move_response(self, response: dict) -> None:
         """
         Update the GUI after a move has been processed.
@@ -107,7 +155,7 @@ class GameController:
         Args:
             response (dict): Engine response containing move result and modified cells.
         """
-        current_player = response["player"]
+        current_player = response["old_player"]
         row, column = current_player.position
         old_row, old_column = response["old_position"]
         self.gui.update_cell(old_row, old_column, "", None)
@@ -115,7 +163,7 @@ class GameController:
         self.gui.update_board(response["enclosure_modified_cells"], current_player.color)
         logger.debug(f"{current_player.name} moved to ({row}, {column})")
 
-        self._update_turn_message(response["next_player"])
+        self._update_turn_message(response["current_player"])
 
         if self.engine.is_game_over():
             logger.info("Game over (GUI)")
@@ -144,31 +192,41 @@ class GameController:
         message = f"Game over! {winner.name} wins!" if winner else "Draw?"
         self.gui.update_turn_message(message)
 
-    def _run_cli_mode(self, initial_state: dict) -> None:
+    def _run_cli_mode(self, game_state: dict, efficiency_level: int = 0) -> None:
         """
         Run the game loop in CLI mode, printing board and turn messages.
 
         Args:
-            initial_state (dict): Initial game state from the engine.
+            game_state (dict): Initial game state from the engine.
+            efficieny_level (int): Usually used for increased performance in AI training.  
+                0: Default  
+                1: No game board output  
+                2: No player turn message  
+                3: No leaderboard output when the game's over
         """
-        logger.info("Running CLI game loop")
+        logger.info(f"Running CLI game loop with efficiency level {efficiency_level}")
 
-        current_player = initial_state["current_player"]
+        current_player = game_state["current_player"]
         while not self.engine.is_game_over():
             logger.debug(f"Turn: {current_player.name}")
-            self._print_board()
-            self._print_turn(current_player)
+            if efficiency_level < 2:
+                if efficiency_level == 0: self._print_board()
+                self._print_turn(current_player)
             
-            while True:
-                action_taken = current_player.play()
-                response = self.engine.process_move(action_taken)
-                if response["success"]:
-                    break
-                else:
-                    logger.debug(f"{current_player.name} attempted invalid move: {action_taken}")
+            if isinstance(current_player, AI):
+                    response = self._handle_ai_turn()
+            else:
+                while True:
+                    action_taken = current_player.play()
 
-            self._update_board(response["next_player"], response["enclosure_modified_cells"])
-            current_player = response["next_player"]
+                    response = self.engine.process_move(action_taken)
+                    if response["success"]:
+                        break
+                    else:
+                        logger.debug(f"{current_player.name} attempted invalid move: {action_taken}")
+
+            if efficiency_level < 1: self._update_board(response["current_player"], response["enclosure_modified_cells"])
+            current_player = response["current_player"]
 
         result = self.engine.get_competitive_data()
         winner = result["winner"]
@@ -181,7 +239,7 @@ class GameController:
 
         logger.info("Game over (CLI)")
         logger.info(f"Winner: {winner.name}")
-        self._print_game_over(winner, losers, cells_counter)
+        if efficiency_level < 3: self._print_game_over(winner, losers, cells_counter)
 
     def _print_turn(self, current_player: Player) -> None:
         """
@@ -196,13 +254,20 @@ class GameController:
         message = f"It is {name}'{'s' if not name.lower().endswith('s') else ''} turn."
         print(message)
 
-    def restart_game(self):
+    def restart_game(self, efficiency_level: int = 0):
         """
         Reset the game state and start a new game loop.
+
+        Args:
+            efficieny_level (int): Only for CLI, usually used for increased performance in AI training.  
+                0: Default  
+                1: No game board output  
+                2: No player turn message  
+                3: No leaderboard output when the game's over
         """
         logger.info("Restarting game")
         self.engine.reset_game_state()
-        self.run()
+        self.run(efficiency_level)
 
     def _print_game_over(self, winner: Player, losers: list[Player], cells_counter: dict[Cell, int]) -> None:
         """

@@ -1,8 +1,10 @@
 from cubee.cells import Cell
-from cubee.actions import Action
+from cubee.actions import Action, ACTION_TO_INDEX
 from cubee.colors import Color
-from random import choice
+from random import choice, random
 import readchar
+from cubee.qtable import SHARED_QTABLE
+#from contextlib import contextmanager
 import logging
 logger = logging.getLogger(__name__)
 
@@ -51,6 +53,12 @@ class Player:
         """
         return choice(actions)
     
+    def win(self):
+        self.nb_wins += 1
+
+    def lose(self):
+        self.nb_losses += 1
+
     @staticmethod
     def clear_used_names() -> None:
         """
@@ -246,7 +254,7 @@ class AI(Player):
     Automated player controlled by AI logic.
     """
 
-    def __init__(self, name: str, color: Color) -> None:
+    def __init__(self, name: str, color: Color, epsilon: float = 0.9, lr: float = 0.01, gamma: float = 0.9, training: bool = True) -> None:
         """
         Initialize an AI player.
 
@@ -255,3 +263,98 @@ class AI(Player):
             color (Color): Player color.
         """
         super().__init__(name, color)
+
+        self.epsilon = epsilon
+        self.lr = lr
+        self.gamma = gamma
+        self.previous_state = None
+        self.previous_action = None
+        self.last_reward = 0
+        self.nb_cells = 1 # every player starts with at least 1 cell
+        self.training = True
+        logger.debug(
+            f"Created an AI with the following parameters:\n\
+            - Epsilon: {self.epsilon}\n\
+            - Learning rate: {self.lr}\n\
+            - Gamma: {self.gamma}\n\
+            - Training mode: {self.training}"
+        )
+
+    def play(self, game_state: dict):
+        valid_actions = game_state["valid_actions"]
+        me: AI = game_state["current_player"]
+        opponents = game_state["opponents"]
+        state = me.position
+        for opponent in opponents:
+            state += opponent.position
+
+        if self.training:
+            if self.previous_state is not None:
+                # Get old Q value for formula
+                prev_q_values = SHARED_QTABLE.get_state_values(self.previous_state)
+                prev_index = ACTION_TO_INDEX[self.previous_action]
+                old_value = prev_q_values[prev_index]
+
+                # Get max Q value for current state (best future value)
+                current_q_values = SHARED_QTABLE.get_state_values(state)
+                max_next = max(current_q_values)
+
+                # Q-learning formula Q(s,a)← Q(s,a)+α[r+γ*maxa′​Q(s′,a′)−Q(s,a)] => old Q value + learning rate *(reward + gamma * max_next - old Q value)
+                new_value = old_value + self.lr * (self.last_reward + self.gamma * max_next - old_value)
+
+                # Store updated value
+                SHARED_QTABLE.update_state_values(self.previous_state, prev_index, new_value)
+
+        q_values = SHARED_QTABLE.get_state_values(state)
+
+        best_value = float('-inf')
+        best_action = None
+            
+        if random() < self.epsilon:
+            best_action = choice(valid_actions)
+        else:
+            for action in valid_actions:
+                index = ACTION_TO_INDEX[action]
+                value = q_values[index]
+
+                if value > best_value:
+                    best_action = action
+                    best_value = value
+
+        self.previous_state = state
+        self.previous_action = best_action
+
+        return best_action
+    
+    def compute_reward(self, game_state: dict, action_taken: Action, response: dict):
+        reward = response["nb_cells_gained"]
+
+        # Enclosure bonuses
+        board_size = game_state["board_rows"] * game_state["board_columns"]
+        ratio = reward / board_size
+        enclosure_reward_value = int(50 * ratio) # For natural scaling instead of random numbers
+
+        if len(response["enclosure_modified_cells"]) > 0:
+            reward += enclosure_reward_value
+
+    def win(self):
+        super().win()
+        self.last_reward += 10
+
+    def lose(self):
+        super().lose()
+        self.last_reward -= 10
+
+    def next_epsilon(self, coefficient = 0.95, minimum_eps = 0.05) -> None:
+        """
+        Reduce the exploration rate (epsilon decay).
+
+        Args:
+            coefficient: Multiplicative decay factor (should be < 1)
+            minimum_eps: Floor value below which epsilon will not decrease
+        """
+        self.epsilon *= coefficient
+        if self.epsilon < minimum_eps:
+            self.epsilon = minimum_eps
+
+        logger.debug(f"Epsilon for AI ({self.name}, {self.cell.name}) set to: {self.epsilon}")
