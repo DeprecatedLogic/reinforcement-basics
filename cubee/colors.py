@@ -7,7 +7,11 @@ class Color(Enum):
     Includes a special `EMPTY` color for unclaimed cells.
     Values are strings representing the color names.
     """
+    BG = "#2C3E50"
+    FG = "#FFFFFF"
     EMPTY = "white"
+    WHITE = "white"
+    BLACK = "black"
     ORANGE = "orange"
     RED = "red"
     BLUE = "blue"

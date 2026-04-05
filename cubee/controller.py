@@ -28,7 +28,7 @@ class GameController:
         
     def run(self, efficiency_level: int = 0) -> None:
         """
-        Main game loop, blocks until game over.
+        Main game loop, blocks until game is over.
 
         Args:
             efficieny_level (int): Only for CLI, usually used for increased performance in AI training.  
@@ -125,10 +125,21 @@ class GameController:
                 self._handle_ai_turn(gui_event=True)    
 
     def _handle_ai_turn(self, gui_event: bool = False) -> dict:
-        """_summary_
+        """
+        Execute a single AI turn and optionally propagate updates to the GUI.
+
+        Note:
+            The current AI selects an action based on the game state, the engine processes
+            the move, and the AI updates its reward signal. In GUI mode, the response is
+            applied to the interface and chained AI turns are scheduled if needed.
+
+        Args:
+            gui_event (bool): Whether the call originates from a GUI event loop.
+                If True, updates the GUI and schedules subsequent AI turns.
 
         Returns:
-            dict: _description_
+            dict: Engine response describing the result of the move, including
+            updated state, success flag, and game termination status.
         """
         game_state = self.engine.get_game_state()
         ai_player: AI = game_state["current_player"]
@@ -136,7 +147,7 @@ class GameController:
         action_taken = ai_player.play(game_state)
         response = self.engine.process_move(action_taken)
         
-        ai_player.compute_reward(game_state, action_taken, response)
+        ai_player.compute_reward(game_state, response)
 
         if gui_event:
             self._handle_move_response(response)
@@ -254,7 +265,7 @@ class GameController:
         message = f"It is {name}'{'s' if not name.lower().endswith('s') else ''} turn."
         print(message)
 
-    def restart_game(self, efficiency_level: int = 0):
+    def restart_game(self, efficiency_level: int = 0) -> None:
         """
         Reset the game state and start a new game loop.
 
