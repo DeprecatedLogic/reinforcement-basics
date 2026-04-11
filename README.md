@@ -51,6 +51,14 @@ pip install -r requirements.txt
 python main.py
 ```
 
+---
+
+You can also launch the program with command-line arguments. To see all available options, run:
+```sh
+python main.py --help
+```
+This will display a full list of arguments and their descriptions.
+
 ## Author Notes
 *My AI learns from its mistakes; I just drink coffee and hope the code works.* - [DeprecatedLogic](https://github.com/DeprecatedLogic)  
 *Watched an AI learn faster than me. I’m fine. Totally fine.* - [EgoChaxs](https://github.com/EgoChaxs)

@@ -37,7 +37,7 @@ KEY_TO_ACTION = {
     "up": Action.UP,
     "down": Action.DOWN,
     "left": Action.LEFT,
-    "right": Action.RIGHT,
+    "right": Action.RIGHT
 }
 """
 Mapping of keyboard inputs to actions.  
@@ -52,6 +52,6 @@ ACTION_TO_INDEX = {
 }
 """
 Mapping of actions to their respective index.  
-This can be retrieved already but it requires looping
-through actions and tanks performance.
+This avoids repeatedly deriving indices (via iteration or lookup on the Action enum),
+providing constant-time access.
 """

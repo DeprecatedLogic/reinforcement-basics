@@ -326,7 +326,20 @@ class AI(Player):
 
         return best_action
     
-    def compute_reward(self, game_state: dict, action_taken: Action, response: dict):
+    def compute_reward(self, game_state: dict, response: dict) -> None:
+        """
+        Compute and update the reward signal based on the latest game transition.
+
+        The reward is primarily derived from the number of cells gained during the move.
+        An additional bonus is applied when an enclosure occurs, scaled proportionally
+        to the board size.
+
+        Args:
+            game_state (dict): Current game state containing board dimensions and context.
+            response (dict): Result of the last action, including:
+                - "nb_cells_gained" (int): Number of cells captured.
+                - "enclosure_modified_cells" (list): Cells affected by an enclosure.
+        """
         reward = response["nb_cells_gained"]
 
         # Enclosure bonuses
@@ -337,11 +350,21 @@ class AI(Player):
         if len(response["enclosure_modified_cells"]) > 0:
             reward += enclosure_reward_value
 
-    def win(self):
+    def win(self) -> None:
+        """
+        Handle a win event and update the reward signal.
+
+        Increments the win counter and applies a positive reward bonus.
+        """
         super().win()
         self.last_reward += 10
 
-    def lose(self):
+    def lose(self) -> None:
+        """
+        Handle a loss event and update the reward signal.
+
+        Increments the loss counter and applies a negative reward penalty.
+        """
         super().lose()
         self.last_reward -= 10
 

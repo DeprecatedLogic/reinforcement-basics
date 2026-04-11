@@ -11,16 +11,14 @@ class GUI(tk.Frame):
         Args:
             parent: The parent Tkinter widget (usually the root window).
         """
-
-        # TODO: use the Color class for BG/FG (?)
         super().__init__(parent)
         self.parent = parent
-        self.configure(bg="#2C3E50")
+        self.configure(bg=Color.BG.value)
         
-        self.board_frame = tk.Frame(self, bg="#2C3E50")
+        self.board_frame = tk.Frame(self, bg=Color.BG.value)
         self.board_frame.pack()
 
-        self.bottom_label = tk.Label(self, text="Starting Game...", bg="#2C3E50", fg="#FFFFFF")
+        self.bottom_label = tk.Label(self, text="Starting Game...", bg=Color.BG.value, fg=Color.FG.value)
         self.bottom_label.pack(side="bottom")
 
     def create_board(self, rows: int, columns: int, on_cell_click) -> None:

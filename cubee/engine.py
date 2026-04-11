@@ -25,10 +25,13 @@ class GameEngine:
 
     def get_game_state(self) -> dict:
         """
-        Retrieve the initial state of the game for GUI/CLI setup.
+        Build and return a snapshot of the current game state.
+        
+        Includes board dimensions, current player, opponents, next player index,
+        and valid actions for the current turn.
 
         Returns:
-            dict: Contains board dimensions, list of players, and the current active player.
+            dict: Game state representation for controller/AI usage.
         """
         return {
             "board_grid": self.model.board.grid,
@@ -43,15 +46,17 @@ class GameEngine:
 
     def _is_valid_position(self, row: int, column: int) -> bool:
         """
-        Check if a given board position is valid for the current player to move to.
+        Determine whether a target position is a legal move.
+
+        A position is valid if it is within bounds, not occupied by an opponent,
+        and reachable via a single-step action from the current player's position.
 
         Args:
-            row (int): Row index of the target position.
-            column (int): Column index of the target position.
+            row (int): Target row index.
+            column (int): Target column index.
 
         Returns:
-            bool: True if the move is within bounds, not on opponent territory,
-                and adjacent to current position.
+            bool: True if the position is valid, False otherwise.
         """
         board = self.model.board
 
@@ -72,10 +77,15 @@ class GameEngine:
         return True
         
     def get_valid_actions(self) -> list[Action]:
-        """_summary_
-        
+        """
+        Compute the list of valid actions for the current player.
+
+        Each possible action is evaluated by checking whether the resulting
+        position is within bounds, not occupied by an opponent, and adjacent
+        to the player's current position.
+
         Returns:
-            list[Action]: _description_
+            list[Action]: List of actions that the current player can legally perform.
         """
         valid_actions = []
         current_player = self.model.current_player()
@@ -93,15 +103,18 @@ class GameEngine:
 
     def process_move_to_position(self, row: int, column: int) -> dict:
         """
-        Process a move for the current player to a specific board position.
+        Execute a move to a specific board position for the current player.
+
+        Validates the move, updates the model, applies enclosure logic, and
+        advances the turn.
 
         Args:
             row (int): Target row.
             column (int): Target column.
 
         Returns:
-            dict: Move result containing success status,
-                player info, old position, modified cells, and next player.
+            dict: Result of the move including success flag, updated player,
+            captured cells, and game status.
         """
         if not self._is_valid_position(row, column):
             logger.debug(f"Move to ({row}, {column}) rejected")
@@ -132,13 +145,16 @@ class GameEngine:
     
     def process_move(self, action_taken: Action) -> dict:
         """
-        Process a move for the current player based on an Action (usually CLI or AI input).
+        Execute a move based on an action.
+
+        Translates the action into a target position and delegates processing
+        to the position-based handler.
 
         Args:
-            action_taken (Action): The action to perform (UP, DOWN, LEFT, RIGHT).
+            action_taken (Action): Action to execute.
 
         Returns:
-            dict: Result of the move, similar to `process_move_to_position`.
+            dict: Result of the move.
         """
         current_player = self.model.current_player()
 
@@ -151,14 +167,14 @@ class GameEngine:
 
     def _post_move_updates(self, original_position: tuple[int, int], original_cell: Cell) -> list[tuple[int, int]]:
         """
-        Handle post-move updates: check for enclosures, update captured cells, and switch to the next player.
+        Apply post-move logic including enclosure detection and turn switching.
 
         Args:
-            original_position (tuple[int, int]): The player's previous position.
-            original_cell (Cell): The cell type that was originally at the destination.
+            original_position (tuple[int, int]): Previous player position.
+            original_cell (Cell): Cell type at destination before the move.
 
         Returns:
-            list[tuple[int, int]]: List of cells captured due to enclosure.
+            list[tuple[int, int]]: Positions of cells captured via enclosure.
         """
         enclosure_modified_cells = []
         if self._check_enclosure(
@@ -174,15 +190,18 @@ class GameEngine:
 
     def _check_enclosure(self, excluded_position: tuple[int, int], position: tuple[int, int], original_cell: Cell) -> bool:
         """
-        Preliminary check to determine if the current move might have formed an enclosure.
+        Perform a preliminary check to determine if enclosure detection is needed.
+
+        Uses heuristic conditions based on movement and neighboring cells to
+        avoid unnecessary BFS computation.
 
         Args:
-            excluded_position (tuple[int, int]): The previous position of the player (to ignore in checks).
+            excluded_position (tuple[int, int]): Previous position to ignore.
             position (tuple[int, int]): Current player position.
-            original_cell (Cell): The type of the cell the player moved from.
+            original_cell (Cell): Cell type at destination before the move.
 
         Returns:
-            bool: True if an enclosure might have occurred, False otherwise.
+            bool: True if enclosure detection should run, False otherwise.
         """
         # WARNING: Keep in mind that the 1st pre-check works BECAUSE the rules
         #   state that players CANNOT move onto opponent territory.
@@ -210,7 +229,10 @@ class GameEngine:
 
     def _enclosure(self) -> list[tuple[int, int]]:
         """
-        Perform BFS to identify all empty cells that are enclosed by the current player and unreachable by opponents.
+        Identify and capture enclosed regions using BFS.
+
+        Marks empty cells that are not reachable by any opponent as owned
+        by the current player.
 
         Returns:
             list[tuple[int, int]]: Positions of captured cells.
@@ -279,31 +301,33 @@ class GameEngine:
         logger.debug(f"Captured {len(captured_cells)} cells via enclosure")
         return captured_cells
 
-    def next_player(self, apply: bool = True) -> None | bool:
+    def next_player(self, apply: bool = True) -> Player:
         """
-        Advance the turn to the next player in the game model.
+        Advance or preview the next player in turn order.
 
         Args:
-            apply (bool): If False, returns the next player,  
-                otherwise sets the next player and returns None.
-        
+            apply (bool): If True, updates the model to the next player and returns the next player.
+                If False, returns the next player without applying.
+
         Returns:
-            bool: If apply is True, else None.
+            Player: Next player.
         """
         if len(self.model.players) == 0:
             logger.critical("No players available when trying to switch turns")
             raise ZeroDivisionError("There are no players available in self.model.players")
         
         index = (self.model.current_player_index + 1) % len(self.model.players)
-        if not apply:
-            return index
+        if apply:
+            self.model.current_player_index = index
+            logger.debug(f"Next player: {self.model.current_player().name}")
         
-        self.model.current_player_index = index
-        logger.debug(f"Next player: {self.model.current_player().name}")
+        return self.model.players[index]
 
     def is_game_over(self) -> bool:
         """
-        Check if the game is over (i.e., no empty cells remain).
+        Check whether the game has ended.
+
+        The game is considered over when no empty cells remain on the board.
 
         Returns:
             bool: True if the game is finished, False otherwise.
@@ -318,12 +342,14 @@ class GameEngine:
 
     def get_competitive_data(self) -> dict:
         """
-        Compute the competitive results after the game ends.
+        Compute final rankings and scores for all players.
+
+        Determines the winner based on cell counts and orders remaining players.
 
         Returns:
-            dict: Contains:
-                - 'winner': Player with the most cells.
-                - 'losers': Players with fewer cells, in ascending order.
+            dict: Contains  
+                - 'winner': Player with the most cells.  
+                - 'losers': Players with fewer cells, in ascending order.  
                 - 'cells_counter': Mapping of Cell -> number of occurrences on the board.
         """
         temp_level = logger.level
@@ -353,7 +379,9 @@ class GameEngine:
         
     def reset_game_state(self) -> None:
         """
-        Reset the game state by resetting the model to its initial configuration.
+        Reset the underlying game model to its initial state.
+
+        Clears the board and reinitializes players and turn order.
         """
         logger.info("Resetting game state")
         self.model.reset()

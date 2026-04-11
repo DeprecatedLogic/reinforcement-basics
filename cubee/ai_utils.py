@@ -7,26 +7,26 @@ from cubee.qtable import QTable, SHARED_QTABLE
 import logging
 logger = logging.getLogger(__name__)
 
-def training(*ais, epochs: int, episodes: int, efficiency_level: int = 0):
+def training(*ais, epochs: int, episodes: int, efficiency_level: int = 0) -> None:
     """
     Train the AIs during `epochs * episodes` games.
+
+    Note:
+        Epsilon decreases with each epoch.
 
     Args:
         epochs (int): Number of game batches.
         episodes (int): Number of games.
-        efficieny_level (int): Usually used for increased performance in AI training.  
+        efficiency_level (int): Usually used for increased performance in AI training.  
                 0: Default  
                 1: No game board output  
                 2: No player turn message  
                 3: No leaderboard output when the game's over
-
-    Note:
-        Epsilon decreases with each epoch.
     """
 
     logger.debug(f"=== Training AIs on {epochs} epochs and {episodes} episodes ===")
     for ai in ais:
-        if type(ai) == AI: ai.training = True
+        if isinstance(ai, AI): ai.training = True
 
     continue_training = []
     game_board = Board(5, 5)
@@ -44,7 +44,7 @@ def training(*ais, epochs: int, episodes: int, efficiency_level: int = 0):
         QTableDAO.save(SHARED_QTABLE, f"cubee/QTables/qtable_epoch_{epoch}.pkl")
         
         for ai in ais:
-            if type(ai) == AI:
+            if isinstance(ai, AI):
                 ai.next_epsilon()
                 if ai.epsilon == 0.05 and ai not in continue_training:
                     logger.info(f"{ai.name} (AI) epsilon is {ai.epsilon}, less than 0.05")
