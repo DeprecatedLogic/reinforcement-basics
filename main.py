@@ -1,37 +1,19 @@
 from matches.player import Player as MatchesPlayer, Human as MatchesHuman, AI as MatchesAI
 from matches.game_controller import GameController
 from matches.game_model import GameModel
+from matches.ai_utils import training, compare_ai
 from cubee.colors import Color
 from cubee.player import Human as CubeeHuman, Player as CubeePlayer, AI as CubeeAI
 from cubee import ai_utils as cubee_ai_utils
 from cubee.qtable_dao import QTableDAO
+from pixel_kart.player import HumanPlayer, RandomAIPlayer
 from main_gui import MainView
 import tkinter as tk
-from matches.ai_utils import training, compare_ai
 import logging
 import argparse
 import sys
 
 def parse_args():
-    """
-    Parse command-line arguments for configuring logging, training, Q-table loading, and GUI behavior.
-
-    This function defines and processes all supported CLI flags, including:
-    - Logging level configuration
-    - AI training parameters (epochs and episodes)
-    - Q-table loading options
-    - GUI enable/disable control
-
-    Returns:
-        argparse.Namespace: Parsed arguments containing:
-            - log (str): Logging level.
-            - epochs (int | None): Number of training epochs.
-            - episodes (int | None): Number of games per epoch.
-            - no_gui (bool): Whether to disable the GUI.
-            - train (bool): Whether to enable AI training.
-            - load_qtable (bool): Whether to load a Q-table from disk.
-            - qtable_path (str | None): Path to the Q-table file.
-    """
     parser = argparse.ArgumentParser(
         description="Reinforcement Basics: train AI, load Q-tables, and start GUI",
         epilog=(
@@ -87,26 +69,13 @@ def parse_args():
         "--qtable-path",
         type=str,
         default=None,
-        help="Path to Q-table file (default: cubee/QTables/qtable_epoch_0.pkl)"
+        help="Path to Q-table file (default: cubee/QTables/qtable_epoch_41.pkl)"
     )
 
     return parser.parse_args()
 
 
 def setup_logging(level_str: str):
-    """
-    Configure application-wide logging.
-
-    Initializes the logging system with a file output, specified severity level,
-    and a detailed log format including timestamp, level, source file, function,
-    and line number.
-
-    Args:
-        level_str (str): Logging level as a string (e.g., "DEBUG", "INFO").
-
-    Returns:
-        logging.Logger: Logger instance associated with the current module.
-    """
     level = getattr(logging, level_str.upper(), logging.INFO)
 
     logging.basicConfig(
@@ -139,11 +108,16 @@ if __name__ == "__main__":
             "AI 2": CubeeAI("AI 2", Color.PURPLE, lr=0.1)
         },
         "pixelkart": {
-            # TODO: Define PixelKart players here.
+            "Human": HumanPlayer("Human", Color.BLUE),           # from pixel_kart.player
+            "Random AI": RandomAIPlayer("Random AI", Color.RED)
         }
     }
 
-    if args.train:
+    gui_mode = not args.no_gui
+    train_ai = args.train
+    load_qtable = args.load_qtable
+
+    if train_ai:
         cubee_ai1 = players["cubee"]["AI 1"]
         cubee_ai2 = players["cubee"]["AI 2"]
 
@@ -153,6 +127,8 @@ if __name__ == "__main__":
 
         logger.info(f"Training AI: epochs={epochs}, episodes={episodes}")
 
+        cubee_ai1.epsilon = 0.10
+        cubee_ai2.epsilon = 0.20
         cubee_ai_utils.training(
             cubee_ai1,
             cubee_ai2,
@@ -161,8 +137,8 @@ if __name__ == "__main__":
             efficiency_level=efficiency_level
         )
 
-    if args.load_qtable:
-        qtable_path = args.qtable_path or "cubee/QTables/qtable_epoch_0.pkl"
+    if load_qtable:
+        qtable_path = args.qtable_path or "cubee/QTables/qtable_epoch_41.pkl"
 
         logger.info(f"Loading Q-table from {qtable_path}")
         qtable = QTableDAO.load(qtable_path)
@@ -176,7 +152,7 @@ if __name__ == "__main__":
         print(qtable)
         print("===================")
 
-    if not args.no_gui:
+    if gui_mode:
         logger.info("Starting GUI")
         root = tk.Tk()
         app = MainView(root, players=players)

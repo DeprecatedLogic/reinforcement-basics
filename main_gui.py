@@ -108,14 +108,13 @@ class MainView(tk.Frame):
         self._add_back_button(game_frame)
 
     def start_pixelkart(self):
-        """Start the PixelKart game (placeholder implementation)."""
         self.hide_menu()
-
         game_frame = tk.Frame(self.parent, bg="#2C3E50")
         game_frame.pack(fill="both", expand=True)
         self.current_game_frame = game_frame
 
-        # TODO: Implement PixelKart game logic here.
+        from pixel_kart.controller import PixelKartController
+        PixelKartController(game_frame)   # ← This starts everything
 
         self._add_back_button(game_frame)
 
