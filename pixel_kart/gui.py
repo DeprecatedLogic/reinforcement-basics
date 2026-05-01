@@ -1,115 +1,126 @@
 import tkinter as tk
-from tkinter import ttk, messagebox
-from pixel_kart.model import Circuit
-from pixel_kart.player import RandomAIPlayer
-from pixel_kart.engine import RaceEngine
-from pixel_kart.pixelKart_circuitFrames import CircuitRaceFrame
-from pixel_kart.pixelKart_circuit_editor import CircuitEditor
-import pixel_kart.pixelKart_dao as dao
+from pixel_kart.cells import Cell, CELL_TO_COLOR, CELL_TO_LABEL, TERRAIN_BITMASK, SPECIAL_BITMASK
+from pixel_kart.player import Player
+import logging
+logger = logging.getLogger(__name__)
 
-class PixelKartGUI(tk.Frame):
+class GUI(tk.Frame):
+    """
+    Tkinter GUI for Pixel Kart using a simple Label grid.
+    No external image libraries required.
+    """
     def __init__(self, parent):
-        super().__init__(parent)
+        super().__init__(parent, bg="#2C3E50")
         self.parent = parent
-        self.circuit = None
-        self.engine = None
-        self.human_name = "Human"
-        self.ai_player = RandomAIPlayer("Random AI")
-        self.current_action = None
+        
+        # HUD Frame (BOTTOM)
+        self.hud_frame = tk.Frame(self, bg="#2C3E50")
+        self.hud_frame.pack(side=tk.BOTTOM, fill=tk.X, pady=10, padx=20)
+        
+        self.turn_label = tk.Label(self.hud_frame, text="Initializing...", font=("Helvetica", 14, "bold"), bg="#2C3E50", fg="white")
+        self.turn_label.pack(side=tk.LEFT)
+        
+        self.stats_label = tk.Label(self.hud_frame, text="Player Speed: 0 | Laps: 0", font=("Helvetica", 14), bg="#2C3E50", fg="#F1C40F")
+        self.stats_label.pack(side=tk.RIGHT)
+        
+        # Grid Frame for the board
+        self.grid_frame = tk.Frame(self, bg="black", bd=2)
+        self.grid_frame.pack(expand=True)
+        
+        # 2D arrays to hold the Label widgets and the default text for each cell
+        self.labels = []
+        self.base_texts = [] 
 
-        self.init_ui()
-        self.load_circuit("Basic")
+        # Mapping direction index to text arrows
+        self.direction_symbols = {
+            0: "▲", # North
+            1: "▶", # East
+            2: "▼", # South
+            3: "◀"  # West
+        }
 
-    def init_ui(self):
-        # Top bar
-        top = ttk.Frame(self)
-        top.pack(fill="x", pady=5)
+    def create_board(self, grid: list[list[Cell]]):
+        """Draws the initial track using a grid of Tkinter Labels."""
+        rows = len(grid)
+        cols = len(grid[0])
+        
+        self.labels = [[None for _ in range(cols)] for _ in range(rows)]
+        self.base_texts = [[None for _ in range(cols)] for _ in range(rows)]
+        
+        for r in range(rows):
+            for c in range(cols):
+                cell_type = grid[r][c]
+                terrain_only = cell_type & TERRAIN_BITMASK
+                special_only = cell_type & SPECIAL_BITMASK
 
-        ttk.Button(top, text="Choose/Edit Circuit", command=self.open_editor).pack(side="left", padx=5)
-        ttk.Button(top, text="New Race", command=self.new_race).pack(side="left", padx=5)
+                # Determine background color
+                bg_color = CELL_TO_COLOR[terrain_only].value
+                
+                # Determine text/icon
+                base_text = CELL_TO_LABEL.get(special_only, "")
 
-        self.info_label = ttk.Label(top, text="", font=("Arial", 10))
-        self.info_label.pack(side="right", padx=10)
+                # Do not show checkpoints
+                if Cell.CHECKPOINT & special_only:
+                    base_text = ""
+                    
+                self.base_texts[r][c] = base_text
+                
+                # Create the label (Width/Height are in text units, not pixels)
+                lbl = tk.Label(self.grid_frame, text=base_text, font=("Courier", 18, "bold"),
+                               bg=bg_color, fg="black", width=2, height=1, borderwidth=1, relief="solid")
+                lbl.grid(row=r, column=c)
+                self.labels[r][c] = lbl
 
-        # Circuit grid
-        self.race_frame = CircuitRaceFrame(self)
-        self.race_frame.pack(pady=10, fill="both", expand=True)
+    def update_karts(self, players: list[Player]):
+        """Wipes old karts by restoring base text, then draws karts at new positions."""
+        # Clear the entire board of karts (restore to default terrain text)
+        for r in range(len(self.labels)):
+            for c in range(len(self.labels[0])):
+                current_text = self.labels[r][c].cget("text")
+                base_text = self.base_texts[r][c]
+                if current_text != base_text:
+                    self.labels[r][c].config(text=base_text, fg="black")
+        
+        # Draw the karts
+        for player in players:
+            row, col = player.position
+            
+            # Boundary check to prevent Tkinter index errors
+            if 0 <= row < len(self.labels) and 0 <= col < len(self.labels[0]):
+                if player.crashed:
+                    symbol = "💥"
+                else:
+                    symbol = self.direction_symbols.get(player.direction_index, "O")
+                    
+                self.labels[row][col].config(text=symbol, fg=player.color.value)
 
-        # Action buttons
-        action_frame = ttk.LabelFrame(self, text="Actions")
-        action_frame.pack(fill="x", pady=8)
+    def update_hud(self, current_player: Player, laps_completed: dict):
+        """Updates the speed and lap counters for the current player."""
+        speed = current_player.speed
+        laps = laps_completed.get(current_player, 0)
+        self.stats_label.config(text=f"{current_player.name} | Speed: {speed} | Laps: {laps}")
 
-        actions = [
-            ("Accelerate", "acc"),
-            ("Brake", "brake"),
-            ("Turn Left", "left"),
-            ("Turn Right", "right"),
-            ("Nothing", "nothing")
-        ]
-        for text, act in actions:
-            btn = ttk.Button(action_frame, text=text,
-                             command=lambda a=act: self.execute_action(a))
-            btn.pack(side="left", expand=True, fill="x", padx=3)
+    def update_turn_message(self, message: str) -> None:
+        """Updates the top message bar."""
+        self.turn_label.config(text=message)
 
-    def open_editor(self):
-        def on_chose(name):
-            self.load_circuit(name)
-        editor = CircuitEditor(self.parent, callback=on_chose)
+    def bind_keys(self, keypress_handler) -> None:
+        """Binds keyboard input to the main Tkinter window."""
+        self.bind_all("<Key>", keypress_handler)
 
-    def load_circuit(self, name: str):
-        dto = dao.get_by_name(name)
-        if not dto:
-            messagebox.showerror("Error", f"Circuit '{name}' not found")
-            return
-        self.circuit = Circuit(dto, name)
-        self.race_frame.dto_to_grid(dto)
-        self.new_race()
-
-    def new_race(self):
-        if not self.circuit:
-            return
-        self.engine = RaceEngine(self.circuit, required_laps=3)
-        self.engine.add_kart(self.human_name, color="red")
-        self.engine.add_kart(self.ai_player.name, color="blue")
-        self.update_view()
-
-    def execute_action(self, action: str):
-        """Called when any action button is clicked -> execute immediately"""
-        if not self.engine:
-            return
-
-        # Human plays
-        self.engine.apply_action(self.human_name, action)
-
-        # AI plays
-        ai_kart = self.engine.karts[self.ai_player.name]
-        ai_action = self.ai_player.choose_action(ai_kart, self.circuit)
-        self.engine.apply_action(self.ai_player.name, ai_action)
-
-        # Advance the simulation
-        self.engine.step()
-        self.update_view()
-
-        # Check if race is over
-        if self.engine.is_race_over():
-            self.show_results()
-            self.new_race()
-
-    def update_view(self):
-        karts_dict = {}
-        for name, kart in self.engine.karts.items():
-            if not kart.crashed:
-                karts_dict[kart.pos] = kart.color
-        self.race_frame.update_view(karts_dict)
-
-        status = f"Turn: {self.engine.turn} | {self.circuit.name} | "
-        for name, k in self.engine.karts.items():
-            status += f"{name}: Lap {k.laps_completed}/3  Speed:{k.speed}  "
-        self.info_label.config(text=status)
-
-    def show_results(self):
-        msg = "Race Over!\n\n"
-        for name, kart in self.engine.karts.items():
-            status = "CRASHED" if kart.crashed else f"Completed {kart.laps_completed} laps"
-            msg += f"{name}: {status}\n"
-        messagebox.showinfo("PixelKart Results", msg)
+    def end_game(self, button_command) -> None:
+        """Displays a game over overlay and unbinds the keys."""
+        self.parent.unbind_all("<Key>")
+        
+        # Overlay frame using place() to center it over the grid
+        overlay = tk.Frame(self.grid_frame, bg="#2C3E50", bd=5, relief=tk.RAISED)
+        overlay.place(relx=0.5, rely=0.5, anchor=tk.CENTER, width=300, height=150)
+        
+        tk.Label(
+            overlay, text="🏁 RACE FINISHED 🏁", font=("Helvetica", 16, "bold"),
+            bg="#2C3E50", fg="white"
+        ).pack(pady=10)
+        tk.Button(
+            overlay, text="Restart", command=button_command, 
+            bg="#E74C3C", fg="white", font=("Helvetica", 12)
+        ).pack(pady=10)
