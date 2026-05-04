@@ -47,9 +47,9 @@ class GUI(tk.Frame):
         self.labels = [[None for _ in range(cols)] for _ in range(rows)]
         self.base_texts = [[None for _ in range(cols)] for _ in range(rows)]
         
-        for r in range(rows):
-            for c in range(cols):
-                cell_type = grid[r][c]
+        for row in range(rows):
+            for column in range(cols):
+                cell_type = grid[row][column]
                 terrain_only = cell_type & TERRAIN_BITMASK
                 special_only = cell_type & SPECIAL_BITMASK
 
@@ -63,23 +63,25 @@ class GUI(tk.Frame):
                 if Cell.CHECKPOINT & special_only:
                     base_text = ""
                     
-                self.base_texts[r][c] = base_text
+                self.base_texts[row][column] = base_text
                 
                 # Create the label (Width/Height are in text units, not pixels)
-                lbl = tk.Label(self.grid_frame, text=base_text, font=("Courier", 18, "bold"),
-                               bg=bg_color, fg="black", width=2, height=1, borderwidth=1, relief="solid")
-                lbl.grid(row=r, column=c)
-                self.labels[r][c] = lbl
+                label = tk.Label(
+                    self.grid_frame, text=base_text, font=("Courier", 18, "bold"),
+                    bg=bg_color, fg="black", width=2, height=1, borderwidth=1, relief="solid"
+                )
+                label.grid(row=row, column=column)
+                self.labels[row][column] = label
 
     def update_karts(self, players: list[Player]):
         """Wipes old karts by restoring base text, then draws karts at new positions."""
         # Clear the entire board of karts (restore to default terrain text)
-        for r in range(len(self.labels)):
-            for c in range(len(self.labels[0])):
-                current_text = self.labels[r][c].cget("text")
-                base_text = self.base_texts[r][c]
+        for row in range(len(self.labels)):
+            for column in range(len(self.labels[0])):
+                current_text = self.labels[row][column].cget("text")
+                base_text = self.base_texts[row][column]
                 if current_text != base_text:
-                    self.labels[r][c].config(text=base_text, fg="black")
+                    self.labels[row][column].config(text=base_text, fg="black")
         
         # Draw the karts
         for player in players:
