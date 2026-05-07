@@ -73,9 +73,9 @@ class GameController:
 
         self._update_turn_message(game_state["current_player"])
 
-        if isinstance(game_state["current_player"], AI):
+        if not isinstance(game_state["current_player"], Human):
             self.gui_locked = True
-            self._handle_ai_turn(gui_event=True)
+            self._handle_automated_turn(gui_event=True)
     
     def _on_cell_clicked(self, row: int, column: int) -> None:
         """
@@ -96,8 +96,8 @@ class GameController:
             return
 
         self._handle_move_response(response)
-        if isinstance(response["current_player"], AI) and not response["is_game_over"]:
-            self._handle_ai_turn(gui_event=True)
+        if not isinstance(response["current_player"], Human) and not response["is_game_over"]:
+            self._handle_automated_turn(gui_event=True)
 
     def _on_keypress(self, event) -> None:
         """
@@ -121,12 +121,12 @@ class GameController:
                 return
 
             self._handle_move_response(response)
-            if isinstance(response["current_player"], AI) and not response["is_game_over"]:
-                self._handle_ai_turn(gui_event=True)    
+            if not isinstance(response["current_player"], Human) and not response["is_game_over"]:
+                self._handle_automated_turn(gui_event=True)    
 
-    def _handle_ai_turn(self, gui_event: bool = False) -> dict:
+    def _handle_automated_turn(self, gui_event: bool = False) -> dict:
         """
-        Execute a single AI turn and optionally propagate updates to the GUI.
+        Execute a single automated turn and optionally propagate updates to the GUI.
 
         Note:
             The current AI selects an action based on the game state, the engine processes
@@ -142,18 +142,21 @@ class GameController:
             updated state, success flag, and game termination status.
         """
         game_state = self.engine.get_game_state()
-        ai_player: AI = game_state["current_player"]
+        automated_player: AI | Player = game_state["current_player"]
 
-        action_taken = ai_player.play(game_state)
+        if isinstance(automated_player, AI): 
+            action_taken = automated_player.play(game_state)
+        else:
+            action_taken = automated_player.play(self.engine.get_valid_actions())
         response = self.engine.process_move(action_taken)
         
-        ai_player.compute_reward(game_state, response)
+        automated_player.compute_reward(game_state, response)
 
         if gui_event:
             self._handle_move_response(response)
 
-            if not response["is_game_over"] and isinstance(response["current_player"], AI):
-                self.gui.parent.after(1000, lambda: self._handle_ai_turn(gui_event=True))
+            if not response["is_game_over"] and not isinstance(response["current_player"], Human):
+                self.gui.parent.after(1000, lambda: self._handle_automated_turn(gui_event=True))
             else:
                 self.gui_locked = False
 
@@ -224,8 +227,8 @@ class GameController:
                 if efficiency_level == 0: self._print_board()
                 self._print_turn(current_player)
             
-            if isinstance(current_player, AI):
-                    response = self._handle_ai_turn()
+            if not isinstance(current_player, Human):
+                response = self._handle_automated_turn()
             else:
                 while True:
                     action_taken = current_player.play()
