@@ -1,12 +1,26 @@
-import tkinter as tk
-from tkinter import messagebox
+# === Matches (Nim21) ===
 from matches.game_controller import GameController
 from matches.player import Human, Player
+# === Cubee ===
 from cubee.controller import GameController as CubeeController
 from cubee.engine import GameEngine as CubeeEngine
 from cubee.gui import GUI as CubeeGUI
 from cubee.model import GameModel as CubeeModel, Board as CubeeBoard
 from cubee.player import Player as CubeePlayer, Human as CubeeHuman
+# === Pixel Kart ===
+from pixel_kart.cells import Cell
+from pixel_kart.controller import GameController as PixelKartController
+from pixel_kart.engine import GameEngine as PixelKartEngine
+from pixel_kart.model import GameModel as PixelKartModel, Board as PixelKartBoard
+from pixel_kart.player import Player as PixelKartPlayer
+from pixel_kart.gui import GUI as PixelKartGUI # TODO: [IMPORTANT] Implement the GUI class before running the main GUI!
+from pixel_kart import dao
+from pixel_kart.editor import CircuitEditor
+# === Other Modules ===
+import tkinter as tk
+from tkinter import ttk, messagebox
+import logging
+logger = logging.getLogger(__name__)
 
 class MainView(tk.Frame):
     def __init__(self, parent, players: dict[dict[Player]]):
@@ -107,14 +121,38 @@ class MainView(tk.Frame):
 
         self._add_back_button(game_frame)
 
-    def start_pixelkart(self):
+    def start_pixelkart(self, player1: PixelKartPlayer, player2: PixelKartPlayer, circuit_name: str, number_of_laps: int):
         self.hide_menu()
+
         game_frame = tk.Frame(self.parent, bg="#2C3E50")
         game_frame.pack(fill="both", expand=True)
         self.current_game_frame = game_frame
 
-        from pixel_kart.controller import PixelKartController
-        PixelKartController(game_frame)   # ← This starts everything
+        # Use DAO for loading
+        grid = dao.get_by_name(circuit_name)
+        if not grid:
+            messagebox.showerror("Error", f"Could not load circuit '{circuit_name}'")
+            self.back_to_menu(game_frame)
+            return
+
+        rows = len(grid)
+        cols = len(grid[0])
+        board = PixelKartBoard(rows, cols)
+
+        # Map the 2D list from the pickle file directly into the Board object
+        for r in range(rows):
+            for c in range(cols):
+                board[(r, c)] = grid[r][c]
+
+        logger.debug(f"Loaded circuit '{circuit_name}' with size {rows}x{cols}")
+
+        model = PixelKartModel(board, player1, player2, laps_required=number_of_laps)
+        
+        gui = PixelKartGUI(parent=game_frame)
+        gui.pack(expand=True, fill="both")
+        engine = PixelKartEngine(model)
+        controller = PixelKartController(engine, gui)
+        controller.run()
 
         self._add_back_button(game_frame)
 
@@ -148,9 +186,8 @@ class MainView(tk.Frame):
         CubeeSettings(self.parent, player_names, self)
 
     def open_pixelkart_settings(self):
-        """Open the settings dialog for the PixelKart game (placeholder)."""
-        # TODO: Define available players for PixelKart in main.py.
-        available_players = self.players["pixelkart"]
+        """Open the settings dialog for the PixelKart game."""
+        available_players = self.players["pixel_kart"]
         player_names = list(available_players.keys())
         PixelKartSettings(self.parent, player_names, self)
 
@@ -174,12 +211,14 @@ class BaseSettings(tk.Toplevel):
         tk.Label(self, text="Player 2", bg="#2C3E50", fg="#FFFFFF").pack(pady=5)
         tk.OptionMenu(self, self.p2_var, *player_names).pack(pady=5)
 
-        tk.Button(self, text="Save", command=self.save,
-                  bg="#3498DB", fg="#FFFFFF", activebackground="#2980B9", activeforeground="#FFFFFF").pack(pady=20)
+        tk.Button(
+            self, text="Play", command=self.play,
+            bg="#3498DB", fg="#FFFFFF", activebackground="#2980B9", activeforeground="#FFFFFF"
+        ).pack(pady=20)
 
-    def save(self):
-        """Validate and save settings (override in subclasses)."""
-        raise NotImplementedError("Subclasses must implement save()")
+    def play(self):
+        """Validate and play the game (override in subclasses)."""
+        raise NotImplementedError("Subclasses must implement play()")
 
     def validate_players(self) -> tuple[str, str]:
         """Validate that two different players are selected."""
@@ -194,12 +233,14 @@ class MatchesSettings(BaseSettings):
     def __init__(self, parent, player_names: list[str], main_view: MainView):
         super().__init__(parent, player_names, main_view, "Matches Game Settings")
 
-    def save(self):
+    def play(self):
         p1_name, p2_name = self.validate_players()
         if not p1_name:
             return
+        
         player1 = self.main_view.players["matches"][p1_name]
         player2 = self.main_view.players["matches"][p2_name]
+        
         self.main_view.start_allumettes(player1, player2)
         self.destroy()
 
@@ -207,20 +248,86 @@ class CubeeSettings(BaseSettings):
     def __init__(self, parent, player_names: list[str], main_view: MainView):
         super().__init__(parent, player_names, main_view, "Cubee Game Settings")
 
-    def save(self):
+    def play(self):
         p1_name, p2_name = self.validate_players()
         if not p1_name:
             return
+
         player1 = self.main_view.players["cubee"][p1_name]
         player2 = self.main_view.players["cubee"][p2_name]
+        
         self.main_view.start_cubee(player1, player2)
         self.destroy()
 
 class PixelKartSettings(BaseSettings):
     def __init__(self, parent, player_names: list[str], main_view: MainView):
-        super().__init__(parent, player_names, main_view, "PixelKart Game Settings")
+        # Silently migrate the old .txt files to the new .pkl system
+        dao.import_legacy_txt()
 
-    def save(self):
-        # TODO: Implement player selection if needed; for now, just start the game.
-        self.main_view.start_pixelkart()
+        super().__init__(parent, player_names, main_view, "PixelKart Game Settings")
+        self.geometry("400x420") # Increased height to fit the new UI elements
+
+        def only_digits(new_value):
+            # allow empty (so backspace works)
+            if new_value == "":
+                return True
+            return new_value.isdigit()
+        
+        vcmd = (self.register(only_digits), "%P")
+        
+        # Number of laps
+        tk.Label(self, text="Number of laps", bg="#2C3E50", fg="#FFFFFF").pack(pady=(10, 2))
+        self.laps_entry = tk.Entry(self, validate="key", validatecommand=vcmd)
+        self.laps_entry.insert(0, "1")
+        self.laps_entry.pack(pady=5)
+
+        # Circuit Selection UI
+        tk.Label(self, text="Select Circuit", bg="#2C3E50", fg="#FFFFFF").pack(pady=(5, 2))
+
+        self.circuit_var = tk.StringVar()
+        self.circuit_dropdown = ttk.Combobox(self, textvariable=self.circuit_var, state="readonly")
+        self.circuit_dropdown.pack(pady=5)
+        
+        # Editor Launch Button
+        tk.Button(
+            self, text="Open Circuit Editor", command=self.open_editor,
+            bg="#27AE60", fg="#FFFFFF", activebackground="#2ECC71"
+        ).pack(pady=10)
+
+        # Populate the dropdown
+        self.refresh_circuits()
+
+    def refresh_circuits(self):
+        """Updates the dropdown with available circuits from the DAO."""
+        circuits = list(dao.get_all().keys())
+        self.circuit_dropdown['values'] = circuits
+        if circuits:
+            # If nothing is selected, or the selected one was deleted, pick the first one
+            if self.circuit_var.get() not in circuits:
+                self.circuit_dropdown.set(circuits[0])
+
+    def open_editor(self):
+        """Launches the Circuit Editor and locks focus to it."""
+        # We pass self.refresh_circuits so the editor can update this dropdown when you click 'Save'
+        editor = CircuitEditor(self, on_close_callback=self.refresh_circuits)
+        editor.grab_set() # Prevents the user from clicking the Settings menu while the Editor is open
+
+    def play(self):
+        """Overrides BaseSettings to include the circuit parameter."""
+        player1_name, player2_name = self.validate_players()
+        if not player1_name:
+            return
+            
+        circuit_name = self.circuit_var.get()
+        if not circuit_name:
+            messagebox.showerror("Error", "Please select a circuit to play. If none exist, open the Editor to create one!")
+            return
+        
+        player1 = self.main_view.players["pixel_kart"][player1_name]
+        player2 = self.main_view.players["pixel_kart"][player2_name]
+        number_of_laps = self.laps_entry.get()
+        number_of_laps = int(number_of_laps) if number_of_laps else 1
+
+        # Pass the circuit_name string to start_pixelkart instead of a hardcoded tuple
+        self.main_view.start_pixelkart(player1, player2, circuit_name, number_of_laps)
         self.destroy()
