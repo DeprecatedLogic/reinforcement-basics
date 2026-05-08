@@ -35,7 +35,8 @@ def engine() -> GameEngine:
     board.finish_line.add((2, 3))
     
     Player.clear_used_names()
-    
+    Player.clear_used_colors()
+
     # Create TWO dummy players to test turn switching
     player1 = Player(name="TestDummy1", color=Color.RED)
     player2 = Player(name="TestDummy2", color=Color.BLUE)
@@ -70,7 +71,7 @@ def test_wall_crash(engine: GameEngine):
     assert player.crashed is True
     assert player.speed == 0
     # The kart shouldn't actually occupy the wall cell
-    assert player.position == (0, 1) 
+    assert player.position == (0, 1)
     assert result["success"] is True
 
 def test_grass_penalty_reverse(engine: GameEngine):
@@ -194,17 +195,17 @@ def test_anti_cheat_reverse_heist(engine: GameEngine):
     """Test the Heist: Burning the start flag, then trying to complete the lap anyway."""
     player = engine.model.players[0]
     
-    # 1. Wiggle into Finish Line (burns the start flag)
+    # Wiggle into Finish Line (burns the start flag)
     engine.model.assign_position(player, (2, 2))
     engine._anti_cheat(player, (2, 2)) # Gets Start Flag
     engine.model.assign_position(player, (2, 3))
     engine._anti_cheat(player, (2, 2)) # Burns Start Flag
     
-    # 2. Drive all the way to Checkpoint
+    # Drive all the way to Checkpoint
     engine.model.assign_position(player, (0, 2))
     engine._anti_cheat(player, (0, 1)) # Gets Checkpoint Flag
     
-    # 3. Drive back to Finish Line
+    # Drive back to Finish Line
     engine.model.assign_position(player, (2, 3))
     is_cheating = engine._anti_cheat(player, (2, 2))
     
@@ -217,12 +218,12 @@ def test_anti_cheat_wrong_way_driver(engine: GameEngine):
     """Test driving backwards around the track: Checkpoint -> Start -> Finish."""
     player = engine.model.players[0]
     
-    # 1. Player manages to hit the Checkpoint first
+    # Player manages to hit the Checkpoint first
     engine.model.assign_position(player, (0, 2))
     engine._anti_cheat(player, (0, 1))
     assert player.checkpoint is True
     
-    # 2. Player then drives backwards into the Start Line
+    # Player then drives backwards into the Start Line
     engine.model.assign_position(player, (2, 2))
     engine._anti_cheat(player, (1, 2))
     
@@ -230,7 +231,7 @@ def test_anti_cheat_wrong_way_driver(engine: GameEngine):
     assert player.start_line is True
     assert player.checkpoint is False
     
-    # 3. Player hits Finish Line
+    # Player hits Finish Line
     engine.model.assign_position(player, (2, 3))
     is_cheating = engine._anti_cheat(player, (2, 2))
     
