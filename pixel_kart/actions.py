@@ -10,7 +10,7 @@ class Action(Enum):
     TURN_LEFT = auto()
     TURN_RIGHT = auto()
     NOTHING = auto()
-    CHEAT = auto()
+    CHEAT = auto() # testing purposes
 
 KEY_TO_ACTION = {
     "w": Action.ACCELERATE,

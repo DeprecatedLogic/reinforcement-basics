@@ -6,6 +6,7 @@ class Color(Enum):
 
     Values are strings representing the color names.
     """
+    SPECIAL = "white"
     GREY = "grey"
     WHITE = "white"
     BLACK = "black"

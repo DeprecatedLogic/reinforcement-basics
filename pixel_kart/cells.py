@@ -3,7 +3,7 @@ from enum import IntFlag
 
 class Cell(IntFlag):
     """
-    Enumeration representing the state of a circuit cell.
+    Enumeration representing the state of a board cell.
 
     Uses integer flags for efficient storage and comparison.
     There is a start line, a finish line, and a checkpoint that should
@@ -28,8 +28,9 @@ CELL_TO_COLOR = {
     Cell.WALL: Color.BLACK,
     Cell.GRASS: Color.GREEN,
     Cell.ROAD: Color.GREY,
-    Cell.START_LINE: Color.YELLOW,
-    Cell.FINISH_LINE: Color.YELLOW
+    Cell.START_LINE: Color.SPECIAL,     # Text is normally white so SPECIAL is white too. (special cells)
+    Cell.FINISH_LINE: Color.SPECIAL,    # This also avoids players to choose white color
+    Cell.CHECKPOINT: Color.SPECIAL      # to represent themselves!
 }
 """
 Map each cell to its color.
