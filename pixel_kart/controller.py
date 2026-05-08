@@ -115,9 +115,8 @@ class GameController:
             action_taken = automated_player.play(AVAILABLE_ACTIONS)
         response = self.engine.process_move(action_taken)
         
-        # TODO: [IMPORTANT] Depending on how the AI class is set up, we might need to adjust compute_reward args
-        if hasattr(automated_player, "compute_reward"):
-            automated_player.compute_reward(game_state, response)
+        if isinstance(automated_player, AI):
+            automated_player.compute_reward(response)
 
         if gui_event:
             self._handle_move_response()

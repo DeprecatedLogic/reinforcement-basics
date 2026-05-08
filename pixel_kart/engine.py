@@ -23,6 +23,7 @@ class GameEngine:
             model (GameModel): The game model containing board, players, and game state.
         """
         self.model = model
+        self.allowed_speed_range = (-1, 2)
 
     def get_game_state(self) -> dict:
         """
@@ -102,10 +103,13 @@ class GameEngine:
         current_player = self.model.current_player()
         position = current_player.position
         speed = current_player.speed
+        laps_completed = self.model.laps_completed[current_player]
         steps = abs(speed)
         cell = board[position]
         is_stationary = steps == 0
-        cells_encountered = []
+        has_completed_lap = False # False by default
+        cells_in_path = [board[position]]
+        is_cheating = False # False by default
 
         # Stationary
         if is_stationary:
@@ -137,26 +141,31 @@ class GameEngine:
                 else:
                     # Assign the new position to the player and get cell type
                     cell = self.model.assign_position(current_player, (step_row, step_column))
-                    cells_encountered.append(cell)
+                    cells_in_path.append(cell)
 
                     # Apply speed effects and update the player's speed value
                     current_player.speed = speed = self._apply_speed_effects(cell, speed)
                     
-                    # Run the anti-cheat (resolves all kinds of cheating + counts laps)
+                    # Run the anti-cheat (resolves all kinds of cheating + counts laps!)
                     is_cheating = self._anti_cheat(current_player, original_position=position)
                     if is_cheating:
                         logger.info(f"Player {current_player} was found cheating")
                         break
         
+                    if laps_completed < self.model.laps_completed[current_player]:
+                        has_completed_lap = True
+
         self.next_player()
 
         # Adjust the data returned based on Controller requirements
         return {
             "success": True,
-            "old_player": current_player, # just in case it's needed (might remove later)
-            "cells_encountered": cells_encountered, # for whatever reason...
+            "old_player": current_player,
+            "cells_in_path": cells_in_path, # for whatever reason...
             "current_player": self.model.current_player(),
             "is_stationary": is_stationary,
+            "is_cheating": is_cheating,
+            "has_completed_lap": has_completed_lap,
             "is_game_over": self.is_game_over()
         }
 
@@ -176,7 +185,10 @@ class GameEngine:
         is_cheating = False
 
         # Check if player is moving faster than allowed
-        if player.speed < -1 or player.speed > 2:
+        min_speed_allowed = min(self.allowed_speed_range)
+        max_speed_allowed = max(self.allowed_speed_range)
+
+        if player.speed < min_speed_allowed or player.speed > max_speed_allowed:
             logger.debug(f"Player {player} is moving faster than allowed\nSpeed set to 0\nPlayer sent back to original position")
             player.speed = 0
             player.position = original_position
@@ -222,18 +234,22 @@ class GameEngine:
         speed = current_player.speed
         direction_index = current_player.direction_index
 
+        min_speed_allowed = min(self.allowed_speed_range)
+        max_speed_allowed = max(self.allowed_speed_range)
+        number_of_directions = len(DIRECTION_ORDER)
+
         logger.debug(f"Player {current_player} took action {action_taken}")
         if action_taken == Action.ACCELERATE:
-            speed = min(2, speed + 1)
+            speed = min(max_speed_allowed, speed + 1)
         elif action_taken == Action.BRAKE:
-            speed = max(-1, speed - 1)
+            speed = max(min_speed_allowed, speed - 1)
         elif action_taken == Action.TURN_LEFT:
-            direction_index = (direction_index - 1) % 4
+            direction_index = (direction_index - 1) % number_of_directions
         elif action_taken == Action.TURN_RIGHT:
-            direction_index = (direction_index + 1) % 4
+            direction_index = (direction_index + 1) % number_of_directions
         elif action_taken == Action.NOTHING:
             logger.debug("Continuing with the same speed and direction.")
-        elif action_taken == Action.CHEAT:
+        elif action_taken == Action.CHEAT: # TESTING PURPOSES
             speed += 5
         else:
             logger.critical(f"An invalid action was passed: {action_taken}")

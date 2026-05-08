@@ -25,26 +25,28 @@ class Board:
         self.start_line: set[tuple[int, int]] = set()
         self.finish_line: set[tuple[int, int]] = set()
     
-    #@staticmethod
-    #def load(file_path: str) -> Board:
-    #    """
-    #    Load a board from disk.
-    #
-    #    The file is deserialized using pickle and used to initialize a Board
-    #    instance with preloaded values.
-    #
-    #    Args:
-    #        file_path (str): Path to the serialized Board file.
-    #
-    #    Returns:
-    #        Board: A Board instance initialized with the loaded data.
-    #    """
-    #    logger.debug(f"Loading the board at path: {file_path}")
-    #    board = None
-    #    with open(file_path, "rb") as f:
-    #        board = pickle.load(f)
-    #        logger.info("Board loaded successfully")
-    #    return board
+    @staticmethod
+    def load(grid: list) -> Board:
+        """
+        Create a Board instance from a 2D list (grid).
+    
+        Args:
+            grid (list): 2D list containing Cells.
+    
+        Returns:
+            Board: A Board instance initialized with the loaded data.
+        """
+        logger.debug(f"Initializing Board out of a 2D list")
+        rows = len(grid)
+        columns = len(grid[0])
+        board = Board(rows, columns)
+        for row in range(rows):
+            for column in range(columns):
+                board[row, column] = grid[row][column]
+        
+        # We did not check for invalid cells or other errors
+        # so it might cause problems later in-game
+        return board
 
     @property
     def rows(self) -> int:
@@ -220,9 +222,9 @@ class GameModel:
 
         self.board = board
         self.players = players
+        self.laps_required = laps_required if laps_required > 0 else 1
         self.laps_completed: dict[Player, int] = {}
         self.actions_history: dict[Player, Action] = {}
-        self.laps_required = laps_required
         self.game_turns = 0
         
         # Storing current player index
