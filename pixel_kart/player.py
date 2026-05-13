@@ -324,6 +324,7 @@ class AI(Player):
         """
         player: AI = game_state["current_player"]
         direction = DIRECTION_ORDER[player.direction_index]
+        neighbor_cells = game_state["neighbor_cells"]
 
         # Create the state tuple
         current_state = (
@@ -332,7 +333,7 @@ class AI(Player):
             direction,
             player.speed,
             player.checkpoint
-        )
+        ) + neighbor_cells
 
         # Epsilon-Greedy Action Selection
         if random() < self.epsilon:

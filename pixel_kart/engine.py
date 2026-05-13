@@ -35,12 +35,24 @@ class GameEngine:
         Returns:
             dict: Game state representation for controller/AI usage.
         """
+        board = self.model.board
+        player = self.model.current_player()
+        opponents = self.model.get_opponents()
+        next_player = self.next_player(apply=False)
+        is_game_over = self.is_game_over()
+
+        # Get the neighbor cell positions based on the current player's position
+        neighbor_positions = board.get_neighbors(player.row, player.column)
+        # Get the actual Cell enum from the board
+        neighbor_cells = tuple(board[position] for position in neighbor_positions)
+
         return {
-            "board": self.model.board,
-            "current_player": self.model.current_player(),
-            "opponents": self.model.get_opponents(),
-            "next_player": self.next_player(apply=False),
-            "is_game_over": self.is_game_over(),
+            "board": board,
+            "current_player": player,
+            "opponents": opponents,
+            "next_player": next_player,
+            "neighbor_cells": neighbor_cells,
+            "is_game_over": is_game_over,
             "laps_completed": self.model.laps_completed,
             "laps_required": self.model.laps_required
         }

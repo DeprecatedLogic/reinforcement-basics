@@ -2,6 +2,7 @@ from random import choice, randint
 import pickle
 from pixel_kart.player import Player
 from pixel_kart.actions import Action
+from pixel_kart.directions import DIRECTION_DELTAS
 from pixel_kart.cells import Cell, CELL_TO_LABEL, cell_to_labels
 import logging
 logger = logging.getLogger(__name__)
@@ -149,6 +150,29 @@ class Board:
             bool: True if the position is within bounds.
         """
         return 0 <= row < self.rows and 0 <= column < self.columns
+
+    def get_neighbors(self, row: int, column: int) -> list[tuple[int, int]]:
+        """
+        Get all valid neighboring positions for a given cell.
+
+        Args:
+            row (int): Row index.
+            column (int): Column index.
+
+        Returns:
+            list[tuple[int, int]]: List of neighboring (row, column) positions.
+        """
+        neighbors = []
+
+        for delta in DIRECTION_DELTAS:
+            delta_row, delta_column = delta
+            neighbor_row = row + delta_row
+            neighbor_column = column + delta_column
+
+            if self.is_within_bounds(neighbor_row, neighbor_column):
+                neighbors.append((neighbor_row, neighbor_column))
+                
+        return neighbors
 
     def __str__(self) -> str:
         """
