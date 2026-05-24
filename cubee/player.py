@@ -273,7 +273,7 @@ class AI(Player):
         self.nb_cells = 1 # every player starts with at least 1 cell
         self.training = True
         logger.debug(
-            f"Created an AI with the following parameters:\n\
+            f"Created a Cubee AI with the following parameters:\n\
             - Epsilon: {self.epsilon}\n\
             - Learning rate: {self.lr}\n\
             - Gamma: {self.gamma}\n\
