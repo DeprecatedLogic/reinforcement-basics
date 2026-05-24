@@ -22,21 +22,47 @@ class Cell(IntFlag):
 
     @property
     def color(self) -> Color:
+        """
+        Retrieve the Color object associated with the current Cell flag.
+
+        Note:
+            If multiple flags are combined within a single Cell instance, 
+            the behavior depends on the mapping keys in `CELL_TO_COLOR`.
+
+        Returns:
+            Color: The color scheme matching the cell type.
+        """
         return CELL_TO_COLOR[self]
 
 CELL_TO_COLOR = {
     Cell.WALL: Color.BLACK,
     Cell.GRASS: Color.GREEN,
     Cell.ROAD: Color.GREY,
-    Cell.START_LINE: Color.SPECIAL,     # Text is normally white so SPECIAL is white too. (special cells)
+    Cell.START_LINE: Color.SPECIAL,     # Text is normally white so SPECIAL is white too by default. (special cells)
     Cell.FINISH_LINE: Color.SPECIAL,    # This also avoids players to choose white color
-    Cell.CHECKPOINT: Color.SPECIAL      # to represent themselves!
+    Cell.CHECKPOINT: Color.SPECIAL      # to represent themselves so it works well!
 }
 """
-Map each cell to its color.
+dict[Cell, Color]: Map each discrete cell flag to its corresponding rendering color.
 """
 
 def cell_to_labels(cell: Cell) -> str:
+    """
+    Convert a cell's flags into a string representation composed of graphical emojis.
+
+    Note:
+        Cells can contain combined bitwise flags (e.g., a combination of terrain and 
+        special markers). If multiple flags containing active labels are present within 
+        the cell, their labels are concatenated. If the resulting string contains more 
+        than one label character, it is enclosed in square brackets.
+
+    Args:
+        cell (Cell): The cell instance (or bitwise combination of flags) to evaluate.
+
+    Returns:
+        str: A string of concatenated emojis matching the active flags, 
+             wrapped in brackets if multiple labels match.
+    """
     labels = ''.join([
         label
         for c, label in CELL_TO_LABEL.items()
@@ -55,8 +81,7 @@ CELL_TO_LABEL = {
     Cell.CHECKPOINT: '⭐'
 }
 """
-Map each cell to its label.  
-Used in the GUI.
+dict[Cell, str]: Map each cell flag to its descriptive emoji label used for GUI rendering.
 """
 
 LEGACY_LABEL_TO_CELL = {
@@ -66,11 +91,17 @@ LEGACY_LABEL_TO_CELL = {
     'F': Cell.START_LINE
 }
 """
-For legacy text import.
+dict[str, Cell]: Parser map for legacy text-based track configurations. 
+                 Maps historical single-character representations to modern Cell flags.
+                 Note that 'F' maps to START_LINE as older formats used a unified line asset.
 """
 
 TERRAIN_BITMASK = Cell.WALL | Cell.GRASS | Cell.ROAD
+"""
+Cell: Bitmask encompassing all environment terrain flags (WALL, GRASS, ROAD).
+"""
+
 SPECIAL_BITMASK = Cell.START_LINE | Cell.FINISH_LINE | Cell.CHECKPOINT
 """
-Bitmasks to help separate terrain from specials.
+Cell: Bitmask encompassing all game logic trigger flags (START_LINE, FINISH_LINE, CHECKPOINT).
 """

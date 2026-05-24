@@ -10,6 +10,9 @@ logger = logging.getLogger(__name__)
 class Board:
     """
     Represents the game board grid.
+
+    Manages a 2D list matrix of Cell items and indexes coordinates for 
+    important tracking components such as start lines and finish lines.
     """
     
     def __init__(self, rows: int, columns: int) -> None:
@@ -27,9 +30,13 @@ class Board:
         self.finish_line: set[tuple[int, int]] = set()
     
     @staticmethod
-    def load(grid: list) -> Board:
+    def load(grid: list):
         """
         Create a Board instance from a 2D list (grid).
+    
+        Note:
+            This initialization factory performs no validation checks 
+            for invalid cell structures or missing race landmarks.
     
         Args:
             grid (list): 2D list containing Cells.
@@ -55,12 +62,25 @@ class Board:
         Get the number of rows in the board.
 
         Returns:
-            int: Number of rows
+            int: Number of rows.
         """
         return self._rows if hasattr(self, '_rows') else 0
     
     @rows.setter
     def rows(self, value: int) -> None:
+        """
+        Dynamically adjust the row count of the board matrix layout.
+
+        Note:
+            If rows are added or trimmed, nested lists are scaled up or down 
+            while matching column configurations automatically to ensure matrix uniformity.
+
+        Args:
+            value (int): The target number of rows. Must be greater than 0.
+
+        Raises:
+            ValueError: If the row dimension value is less than 1.
+        """
         if value < 1:
             logger.error(f"Invalid rows value: {value}")
             raise ValueError("Rows value must be bigger than 0!")
@@ -99,6 +119,15 @@ class Board:
     
     @columns.setter
     def columns(self, value: int) -> None:
+        """
+        Dynamically adjust the column count across all rows in the board matrix layout.
+
+        Args:
+            value (int): The target number of columns. Must be greater than 0.
+
+        Raises:
+            ValueError: If the column dimension value is less than 1.
+        """
         if value < 1:
             logger.error(f"Invalid columns value: {value}")
             raise ValueError("Columns value must be bigger than 0!")
@@ -151,28 +180,46 @@ class Board:
         """
         return 0 <= row < self.rows and 0 <= column < self.columns
 
-    def get_neighbors(self, row: int, column: int) -> list[tuple[int, int]]:
+    def get_relative_vision(self, row: int, column: int, direction_index: int, vision_depth: int = 2) -> tuple:
         """
-        Get all valid neighboring positions for a given cell.
+        Get the cells relative to the player's current direction up to a specified depth.
+
+        Note:
+            Projects raycasts from the player's reference frame: Ahead, Left, and Right. 
+            Each directional lane calculates cells sequentially up to `vision_depth`.
+            Any raycast stepping outside the board boundary defaults to returning `Cell.WALL`.
 
         Args:
-            row (int): Row index.
-            column (int): Column index.
+            row (int): Player's current row coordinate index.
+            column (int): Player's current column coordinate index.
+            direction_index (int): Player orientation index (0=North, 1=East, 2=South, 3=West).
+            vision_depth (int, optional): Spatial depth reach per sensor lane. Defaults to 2.
 
         Returns:
-            list[tuple[int, int]]: List of neighboring (row, column) positions.
+            tuple[Cell, ...]: A flat collection of Cell configurations in order: 
+                              [Ahead_1, Ahead_2, Left_1, Left_2, Right_1, Right_2].
         """
-        neighbors = []
+        from pixel_kart.cells import Cell
+        from pixel_kart.directions import DIRECTION_ORDER
 
-        for delta in DIRECTION_DELTAS:
-            delta_row, delta_column = delta
-            neighbor_row = row + delta_row
-            neighbor_column = column + delta_column
+        ahead_dir = DIRECTION_ORDER[direction_index]
+        left_dir = DIRECTION_ORDER[(direction_index - 1) % 4]
+        right_dir = DIRECTION_ORDER[(direction_index + 1) % 4]
 
-            if self.is_within_bounds(neighbor_row, neighbor_column):
-                neighbors.append((neighbor_row, neighbor_column))
+        sensor_cells = []
+        for direction in (ahead_dir, left_dir, right_dir):
+            delta_row, delta_col = direction.delta
+            
+            for step in range(1, vision_depth + 1):
+                n_row = row + delta_row * step
+                n_col = column + delta_col * step
                 
-        return neighbors
+                if self.is_within_bounds(n_row, n_col):
+                    sensor_cells.append(self[(n_row, n_col)])
+                else:
+                    sensor_cells.append(Cell.WALL)
+
+        return tuple(sensor_cells)
 
     def __str__(self) -> str:
         """
@@ -210,6 +257,11 @@ class Board:
         """
         Set the cell value at a specific position.
 
+        Note:
+            When a cell contains `Cell.START_LINE` or `Cell.FINISH_LINE` bit flags, 
+            its positional coordinates are cached inside tracking index sets 
+            to assist with player placement and anti-cheat verification loops.
+
         Args:
             position (tuple[int, int]): (row, column) coordinates.
             value (Cell): The cell type to set.
@@ -240,7 +292,7 @@ class GameModel:
         Args:
             board (Board): The game board.
             players (tuple[Player]): Players participating in the game.
-            laps_required (int): The number of laps a player needs to complete.
+            laps_required (int, optional): Laps needed to finish. Defaults to 1.
         """
         logger.info(f"Initializing game with {len(players)} players")
 
@@ -269,8 +321,12 @@ class GameModel:
         """
         Assign starting positions to all players.
 
-        Players are placed on the start line.
-        Raises an exception if there are more players than available positions.
+        Note:
+            Draws randomly from available start line coordinates. 
+            Ensures distinct positions are used for each participant.
+
+        Raises:
+            Exception: If there are more active players than start line tiles on the board.
         """
         available_positions = list(self.board.start_line)
 
@@ -315,6 +371,11 @@ class GameModel:
         return self.players[self.current_player_index]
 
     def update_turn(self) -> None:
+        """
+        Advance the absolute game turn counters.
+
+        Updates the internal turn logs for all players whose karts have not crashed.
+        """
         self.game_turns += 1
         for player in self.players:
             if not player.crashed:

@@ -9,10 +9,11 @@ logger = logging.getLogger(__name__)
 
 class Player:
     """
-    Represents a player in the game.
+    Base class representing a participant within the game space.
 
-    Stores identity, position, color, and statistics.
-    Defines the interface for choosing an action.
+    Tracks absolute identity details, spatial coordinate arrays, operational speeds, 
+    and track checkpoint validation states. Offers static registries to manage global 
+    namespace and color constraints across active players.
     """
     player_names_used = []
     duplicate_names_allowed = False # for testing purposes; False by default (recommended)
@@ -21,14 +22,14 @@ class Player:
 
     def __init__(self, name: str, color: Color) -> None:
         """
-        Initialize a player with a unique name and a valid color.
+        Initialize a player with unique identity tags, safe speeds, and start line validation.
 
         Args:
-            name (str): Display name of the player (must be unique).
-            color (Color): Color assigned to the player.
+            name (str): Unique identifier and display name string.
+            color (Color): Unique visual identity color selection.
 
         Raises:
-            Exception: If the name is already in use and `Player.duplicate_name_allowed` is True.
+            Exception: If name or color parameters violate active global uniqueness registries.
         """
         if name in Player.player_names_used and not Player.duplicate_names_allowed:
             logger.error(f"Player name '{name}' already in use")
@@ -57,39 +58,45 @@ class Player:
 
     def play(self, actions: list[Action]) -> Action:
         """
-        Select an action from the available ones.
+        Select an action uniformly at random from a collection of available choices.
 
         Args:
-            actions (list[Action]): Valid actions for the current turn.
+            actions (list[Action]): Collection of valid environment actions to evaluate.
 
         Returns:
-            Action: Chosen action.
+            Action: Selected action component.
         """
         return choice(actions)
     
-    def win(self):
+    def win(self) -> None:
+        """
+        Increment total victory tracking registers.
+        """
         self.nb_wins += 1
 
-    def lose(self):
+    def lose(self) -> None:
+        """
+        Increment total loss tracking registers.
+        """
         self.nb_losses += 1
 
     @staticmethod
     def clear_used_names() -> None:
         """
-        Clear the registry of used player names.
+        Wipe out the global historical name registry tracking records.
         """
         Player.player_names_used.clear()
 
     @staticmethod
     def clear_used_colors() -> None:
         """
-        Clear the registry of used player colors.
+        Wipe out the global historical color registry tracking records.
         """
         Player.player_colors_used.clear()
     
     def reset_stats(self) -> None:
         """
-        Reset the player's statistics.
+        Wipe out total victory and loss historical counts for this instance.
         """
         logger.debug(f"Resetting stats for {self.name}")
         self.nb_wins = 0
@@ -97,7 +104,7 @@ class Player:
     
     def reset_kart(self) -> None:
         """
-        Reset the player's kart attributes.
+        Reset velocity, direction, crash flags, and orientation markers to baseline values.
         """
         logger.debug(f"Resetting kart for {self.name}")
         self.direction_index = 1
@@ -108,39 +115,42 @@ class Player:
         self.nb_turns = 0
 
     def reset(self) -> None:
+        """
+        Execute a complete sweep of lifetime metrics and physical kart spatial trackers.
+        """
         self.reset_stats()
         self.reset_kart()
 
     @property
     def total_games(self) -> int:
         """
-        Total number of games played by the player.
+        Compute total games finalized under this identity.
 
         Returns:
-            int: Number of games played.
+            int: Total game instances recorded.
         """
         return self.nb_wins + self.nb_losses
     
     @property
     def row(self) -> int:
         """
-        Get the player's row position.
+        Get the 0-indexed matrix vertical row position coordinate.
 
         Returns:
-            int: Row index (0-based)
+            int: Vertical position index.
         """
         return self._row
     
     @row.setter
     def row(self, value: int) -> None:
         """
-        Set the player's row position.
+        Set the vertical row coordinate parameter.
 
         Args:
-            value (int): New row index (0-based)
+            value (int): Vertical coordinate index. Must be non-negative.
 
         Raises:
-            ValueError: If value < 0.
+            ValueError: If coordinate points below 0 bounds.
         """
         if value < 0:
             logger.error(f"Invalid row value: {value}")
@@ -150,23 +160,23 @@ class Player:
     @property
     def column(self) -> int:
         """
-        Get the player's column position.
+        Get the 0-indexed matrix horizontal column position coordinate.
 
         Returns:
-            int: Column index (0-based)
+            int: Horizontal position index.
         """
         return self._column
     
     @column.setter
     def column(self, value: int) -> None:
         """
-        Set the player's column position.
+        Set the horizontal column coordinate parameter.
 
         Args:
-            value (int): New column index (0-based)
+            value (int): Horizontal coordinate index. Must be non-negative.
 
         Raises:
-            ValueError: If value < 0.
+            ValueError: If coordinate points below 0 bounds.
         """
         if value < 0:
             logger.error(f"Invalid column value: {value}")
@@ -176,31 +186,29 @@ class Player:
     @property
     def color(self) -> Color:
         """
-        Get the player's color.
+        Get the specific Color Enum instance tracking this player's asset visualization layer.
 
         Returns:
-            Color: Player's color.
+            Color: Active player presentation color flag.
         """
         return self._color
 
     @color.setter
     def color(self, value: Color) -> None:
         """
-        Set the player's color.
+        Assign an identity configuration token to the player visual asset tracker.
 
         Args:
-            value (Color): New color to assign.
+            value (Color): Target Color configuration enum element.
 
         Raises:
-            TypeError: If value is not a Color.
-            ValueError: If value is Color.EMPTY.
+            TypeError: If parameter configuration does not conform to core Color classes.
         """
         if not isinstance(value, Color):
             logger.error(f"Invalid color type for player {self.name}: {type(value)}")
             raise TypeError("Cannot set player's color to a value of type other than Color")
 
         # In case we want to avoid players using terrain colors
-
         #if value in CELL_TO_COLOR.values():
         #    logger.error(f"Player {self.name} attempted to use environment colors")
         #    raise ValueError("Cannot set player's color to the same color as the environment (this ain't a stealth game)")
@@ -210,23 +218,23 @@ class Player:
     @property
     def position(self) -> tuple[int, int]:
         """
-        Get the player's current position.
+        Extract coordinates as a unified coordinate mapping sequence.
 
         Returns:
-            tuple[int, int]: (row, column)
+            tuple[int, int]: (row_index, column_index)
         """
         return self.row, self.column
 
     @position.setter
     def position(self, value: tuple[int, int]) -> None:
         """
-        Set the player's position.
+        Set spatial coordinate assignments.
 
         Args:
-            value (tuple[int, int]): (row, column)
+            value (tuple[int, int]): Two-element tuple consisting of (row, column) values.
 
         Raises:
-            ValueError: If value is not a tuple of two integers.
+            ValueError: If incoming inputs fail type validations or dimension properties.
         """
         if not (
             isinstance(value, tuple) and len(value) == 2 and
@@ -240,20 +248,23 @@ class Player:
     @property
     def direction_index(self) -> int:
         """
-        _summary_
+        Get absolute directional matrix offset indexes (0=North, 1=East, 2=South, 3=West).
 
         Returns:
-            int: _description_
+            int: Integer index indicating current heading direction.
         """
         return self._direction_index
 
     @direction_index.setter
     def direction_index(self, value: int) -> None:
         """
-        _summary_
+        Set directional matrix heading tracking registers.
 
         Args:
-            value (int): _description_
+            value (int): Destination orientation index value inside range bounds [0, 3].
+
+        Raises:
+            ValueError: If direction value escapes the required system range intervals.
         """
         if  value < 0 or value > 3:
             logger.error(f"Invalid direction index: {value}")
@@ -262,44 +273,51 @@ class Player:
 
     def __str__(self) -> str:
         """
-        Return a string representation of the player.
+        Format player attributes into human-readable string values.
 
         Returns:
-            str: Player name and associated cell.
+            str: Identity string identifier matching user profile names.
         """
         return f"{self.name}"
     
 class Human(Player):
     """
-    Player controlled by user input.
+    Subclass representing human-operated agents utilizing interface input handlers.
     """
 
     def __init__(self, name: str, color: Color) -> None:
         """
-        Initialize a human player.
+        Initialize a user-controlled profile layout.
 
         Args:
-            name (str): Player name.
-            color (Color): Player color.
+            name (str): Unique identifier display name.
+            color (Color): Unique visual component representation color token.
         """
         super().__init__(name, color)
 
 class AI(Player):
     """
-    Automated player controlled by AI logic.
+    Reinforcement learning model agent utilizing Temporal Difference tabular Q-Learning.
+
+    Extracts sensory data structures, applies exploration strategy choices, 
+    and handles standard or terminal state reward processing updates.
     """
 
-    def __init__(self, name: str, color: Color, epsilon: float = 0.9, lr: float = 0.01, gamma: float = 0.9, training: bool = True) -> None:
+    def __init__(
+        self, name: str, color: Color,
+        epsilon: float = 0.9, lr: float = 0.01, gamma: float = 0.9,
+        training: bool = False
+    ) -> None:
         """
-        Initialize an AI player.
+        Initialize an automated agent with custom operational parameters.
 
         Args:
-            name (str): Player name.
-            color (Color): Player color.
-            epsilon (float, optional): _description_. Defaults to 0.9.
-            lr (float, optional): _description_. Defaults to 0.01.
-            gamma (float, optional): _description_. Defaults to 0.9.
-            training (bool, optional): _description_. Defaults to True.
+            name (str): Unique descriptive profile name.
+            color (Color): Unique presentation identity color configuration token.
+            epsilon (float, optional): Epsilon-greedy rate tracking exploration frequency. Defaults to 0.9.
+            lr (float, optional): Alpha learning rate scalar weighting model weight modifications. Defaults to 0.01.
+            gamma (float, optional): Discount scalar weighting long-term situational rewards. Defaults to 0.9.
+            training (bool, optional): Boolean toggling model updating behaviors on or off. Defaults to False.
         """
         super().__init__(name, color)
 
@@ -309,41 +327,70 @@ class AI(Player):
         self.previous_state = None
         self.previous_action = None
         self.previous_reward = 0
-        self.training = True
+        self.training = training
         logger.debug(
-            f"Created an AI with the following parameters:\n\
+            f"Created a PixelKart AI with the following parameters:\n\
             - Epsilon: {self.epsilon}\n\
             - Learning rate: {self.lr}\n\
             - Gamma: {self.gamma}\n\
             - Training mode: {self.training}"
         )
 
+    def _extract_state(self, game_state: dict) -> tuple:
+        """
+        Compile dynamic positional attributes and context parameters into a unified hashable key string.
+
+        Note:
+            Combines current forward velocity, lap-validation markers, and raycasted vision data 
+            into a unified observation snapshot used for state lookups.
+
+        Args:
+            game_state (dict): Active context map forwarded from orchestration objects.
+
+        Returns:
+            tuple: Composite observation state tracking mapping features:
+                   (speed, start_line, checkpoint, vision_1, ..., vision_n)
+        """
+        board = game_state["board"]
+
+        # Get the cells relative to the player's current direction up to a specified depth
+        relative_vision_cells = board.get_relative_vision(self.row, self.column, self.direction_index, vision_depth=2)
+
+        return (
+            self.speed,
+            self.start_line,
+            self.checkpoint
+        ) + relative_vision_cells
+
     def play(self, game_state: dict) -> Action:
         """
-        Determine the next action using the epsilon-greedy strategy.
+        Select an environment action using an epsilon-greedy strategy.
+
+        Note:
+            Exploratory steps select actions uniformly at random, while exploitative steps 
+            query the shared Q-table and select the index mapping to the maximal expected return value.
+
+        Args:
+            game_state (dict): Active data structures mapping environmental board items.
+
+        Returns:
+            Action: Chosen operational steering action element.
         """
-        player: AI = game_state["current_player"]
-        direction = DIRECTION_ORDER[player.direction_index]
-        neighbor_cells = game_state["neighbor_cells"]
+        current_state = self._extract_state(game_state)
 
-        # Create the state tuple
-        current_state = (
-            player.row,
-            player.column,
-            direction,
-            player.speed,
-            player.checkpoint
-        ) + neighbor_cells
-
-        # Epsilon-Greedy Action Selection
-        if random() < self.epsilon:
+        # Epsilon-Greedy Action selection (only in training mode)
+        if self.training and random() < self.epsilon:
             # Pick a random valid action
             action = choice(AVAILABLE_ACTIONS)
             action_index = AVAILABLE_ACTIONS.index(action)
         else:
             # Pick the action with the highest Q-value for this state
             q_values = SHARED_QTABLE.get_state_values(current_state)
-            action_index = q_values.index(max(q_values))
+            max_q = max(q_values)
+
+            # Find all actions tied for the highest Q-value and pick one randomly
+            best_actions = [i for i, q in enumerate(q_values) if q == max_q]
+            action_index = choice(best_actions)
             action = AVAILABLE_ACTIONS[action_index]
 
         # Save the current state and action for the Bellman update later
@@ -352,81 +399,126 @@ class AI(Player):
 
         return action
 
-    def compute_reward(self, response: dict) -> None:
+    def compute_reward(self, game_state: dict, response: dict) -> None:
         """
-        Calculates the reward for the previous move and updates the Q-table
-        using the detailed response payload from the Engine.
+        Calculate directional environment rewards and apply updates via standard Bellman equations.
+
+        Note:
+            Time bleed modifiers are step-calculated based on vehicle velocity. Critical events 
+            such as track collisions invoke standalone terminal updates and clear state buffers immediately.
 
         Args:
-            response (dict): _description_
+            game_state (dict): Context map details tracking world parameters.
+            response (dict): Telemetry payload feedback tracking environmental shifts.
         """
         if not self.training or self.previous_state is None or self.previous_action is None:
             return
 
-        # Get the AI player in its new state after the move
-        player: AI = response["old_player"]
-        direction = DIRECTION_ORDER[player.direction_index]
+        checkpoint_acquired = response.get("checkpoint_acquired")
+        has_completed_lap = response.get("has_completed_lap")
+        is_cheating = response.get("is_cheating")
+        #is_last_lap = game_state["laps_completed"][player] == game_state["laps_required"]
 
         # Extract the new state (s')
-        current_state = (
-            player.row,
-            player.column,
-            direction, 
-            player.speed, 
-            player.checkpoint
-        )
+        current_state = self._extract_state(game_state)
 
-        # Calculate the Reward (R)
-        reward = -0.1 # Base time penalty (encourages speed; find shortest path)
+        # Tiered time penalty, rewarding speed by punishing less
+        if self.speed == 2:
+            reward = -1 # tiny bleed for maximum speed
+        elif self.speed == 1:
+            reward = -5 # medium bleed for slow movement
+        elif self.speed < 0:
+            reward = -10 # penalty for reversing
+        else:
+            reward = -20 # heavy penalty for being completely stationary (self.speed == 0)
 
-        previous_state_checkpoint = self.previous_state[4]
+        # Instant terminal math for crashes
+        if self.crashed:
+            reward = -1000
+            old_q_values = SHARED_QTABLE.get_state_values(self.previous_state)
+            old_q_value = old_q_values[self.previous_action]
+            
+            # Pure terminal penalty. No gamma, no future state.
+            new_q_value = old_q_value + self.lr * (reward - old_q_value)
+            SHARED_QTABLE.update_state_values(self.previous_state, self.previous_action, new_q_value)
 
-        if player.crashed:
-            reward = -20
-        elif response.get("is_cheating"):
-            reward = -100
-        elif player.start_line and player.checkpoint and not previous_state_checkpoint:
-            reward += 50 # Checkpoint acquired
+            logger.debug(f"Rewarded {self.name} with: {reward} points (instant terminal for crashing)")
+            return
 
-        # Add any terminal rewards triggered by the win()/lose() methods
-        reward += self.previous_reward
-        self.previous_reward = 0
+        # Standard rewards
+        if is_cheating:
+            reward -= 1000
+        if checkpoint_acquired:
+            reward += 500
+        if has_completed_lap:
+            reward += 1000
 
-        # Bellman equation update
+        # Standard Bellman update
         old_q_values = SHARED_QTABLE.get_state_values(self.previous_state)
         old_q_value = old_q_values[self.previous_action]
 
         new_q_values = SHARED_QTABLE.get_state_values(current_state)
         max_new_q_value = max(new_q_values)
-
+        
         new_q_value = old_q_value + self.lr * (reward + self.gamma * max_new_q_value - old_q_value)
         SHARED_QTABLE.update_state_values(self.previous_state, self.previous_action, new_q_value)
+        logger.debug(f"Rewarded {self.name} with: {reward} points (standard reward)")
+
+    def force_terminal_update(self) -> None:
+        """
+        Commit delayed game-over rewards into tables at match conclusion intervals.
+
+        Note:
+            Drops future lookup components (gamma terms) to evaluate absolute terminal states.
+        """
+        if not self.training or self.previous_state is None or self.previous_action is None:
+            return
+
+        if self.previous_reward == 0:
+            return
+
+        logger.debug(f"Flushing pending terminal reward: {self.previous_reward} points")
+
+        old_q_values = SHARED_QTABLE.get_state_values(self.previous_state)
+        old_q_value = old_q_values[self.previous_action]
+
+        # For a terminal state, there are no future actions, so we drop the gamma * max(Q) term
+        # We only apply the final pending reward (which contains the win/lose score)
+        new_q_value = old_q_value + self.lr * (self.previous_reward - old_q_value)
+        
+        SHARED_QTABLE.update_state_values(self.previous_state, self.previous_action, new_q_value)
+        self.previous_reward = 0
+
+    def reset_kart(self) -> None:
+        """
+        Reset instance velocity states, track validations, and evaluation buffers to baseline values.
+        """
+        super().reset_kart()
+        self.previous_reward = 0
+        self.previous_action = None
+        self.previous_state = None
 
     def win(self) -> None:
         """
-        Handle a win event and update the reward signal.
-
-        Increments the win counter and applies a positive reward bonus.
+        Handle victory criteria milestones and queue a positive bonus reward.
         """
         super().win()
-        self.previous_reward += 100
+        self.previous_reward += 2000
 
     def lose(self) -> None:
         """
-        Handle a loss event and update the reward signal.
-
-        Increments the loss counter and applies a negative reward penalty.
+        Handle match loss events. (Negative reward updates are commented out in this version).
         """
         super().lose()
-        self.previous_reward -= 100
+        #self.previous_reward -= 2000
 
-    def next_epsilon(self, coefficient = 0.95, minimum_eps = 0.05) -> None:
+    def next_epsilon(self, coefficient = 0.97, minimum_eps = 0.05) -> None:
         """
-        Reduce the exploration rate (epsilon decay).
+        Apply step decay modifiers to exploration frequencies.
 
         Args:
-            coefficient: Multiplicative decay factor (should be < 1)
-            minimum_eps: Floor value below which epsilon will not decrease
+            coefficient (float, optional): Multiplicative factor shrinking tracking values. Defaults to 0.97.
+            minimum_eps (float, optional): Hard limit baseline floor value constraints. Defaults to 0.05.
         """
         self.epsilon *= coefficient
         if self.epsilon < minimum_eps:

@@ -28,30 +28,28 @@ class GameEngine:
     def get_game_state(self) -> dict:
         """
         Build and return a snapshot of the current game state.
-        
-        Includes board grid, board rows and columns, current player, opponents,
-        next player index, and if game is over.
 
         Returns:
-            dict: Game state representation for controller/AI usage.
+            dict: Snapshot mapping representing the current state containing keys:
+                  - "board": The active Board grid model instance.
+                  - "current_player": Player instance taking the current turn.
+                  - "opponents": Tuple of other players on the track.
+                  - "is_game_over": Boolean indicating if ending conditions are met.
+                  - "laps_completed": Reference dict mapping players to completed laps.
+                  - "laps_required": Integer target required to win.
         """
         board = self.model.board
         player = self.model.current_player()
         opponents = self.model.get_opponents()
-        next_player = self.next_player(apply=False)
+        #next_player = self.next_player(apply=False)
         is_game_over = self.is_game_over()
-
-        # Get the neighbor cell positions based on the current player's position
-        neighbor_positions = board.get_neighbors(player.row, player.column)
-        # Get the actual Cell enum from the board
-        neighbor_cells = tuple(board[position] for position in neighbor_positions)
 
         return {
             "board": board,
             "current_player": player,
             "opponents": opponents,
-            "next_player": next_player,
-            "neighbor_cells": neighbor_cells,
+            #"next_player": next_player,
+            #"relative_vision_cells": relative_vision_cells,
             "is_game_over": is_game_over,
             "laps_completed": self.model.laps_completed,
             "laps_required": self.model.laps_required
@@ -59,14 +57,14 @@ class GameEngine:
 
     def _should_crash(self, row: int, column: int) -> bool:
         """
-        _summary_
+        Evaluate if moving to the specified coordinates results in a kart crash.
 
         Args:
-            row (int): _description_
-            column (int): _description_
+            row (int): Target row index grid line.
+            column (int): Target column index grid line.
 
         Returns:
-            bool: _description_
+            bool: True if position is out of bounds or strikes a wall; otherwise False.
         """
         board = self.model.board
         
@@ -85,14 +83,19 @@ class GameEngine:
         return False
 
     def _apply_speed_effects(self, board_cell: Cell, speed: int) -> int:
-        """_summary_
+        """
+        Apply physics environmental slowdown/speedup factors to the player's current velocity.
+
+        Note:
+            Moving across a `Cell.GRASS` tile cuts velocity in half via integer truncation, 
+            driving both forward vectors and reverse vectors smoothly towards zero.
 
         Args:
-            cell (Cell): _description_
-            speed (int): _description_
+            board_cell (Cell): The bitfield flag tracking terrain properties of the active cell.
+            speed (int): The current speed value of the moving player.
 
         Returns:
-            int: _description_
+            int: The adjusted speed value following environmental surface attenuation.
         """
         if board_cell & Cell.GRASS:
             # Use `speed // 2` if going backward should be a constant -1
@@ -102,25 +105,39 @@ class GameEngine:
 
     def process_move_to_position(self, direction: Direction) -> dict:
         """
-        _summary_
+        Process the step-by-step physical displacement of a player along a directional vector.
+
+        Note:
+            If velocity is negative, the orientation vector is inverted 180 degrees 
+            to simulate reverse locomotion. Physics calculations, surface friction adjustments, 
+            boundary checks, and anti-cheat telemetry are evaluated individually for each step. 
+            If a crash occurs, execution ceases early for that player.
 
         Args:
-            direction (Direction): _description_
+            direction (Direction): The absolute orientation heading guiding kart displacement.
 
         Returns:
-            dict: Result of the move including success flag, old player,
-            current player, and game status.
+            dict: Event properties reporting state metrics back to the orchestration loop:
+                  - "success": Boolean execution confirmation (always True).
+                  - "old_player": Player instance evaluated during this turn.
+                  - "current_player": The next player up in rotation order.
+                  - "is_cheating": Boolean flag flagging illegal layout leaps.
+                  - "has_completed_lap": True if a valid lap was completed this turn.
+                  - "checkpoint_acquired": True if a checkpoint was unlocked this turn.
+                  - "is_game_over": True if a terminal ending match pattern was activated.
         """
         board = self.model.board
         current_player = self.model.current_player()
         position = current_player.position
         speed = current_player.speed
+        has_checkpoint = current_player.checkpoint
+        checkpoint_acquired = False
         laps_completed = self.model.laps_completed[current_player]
         steps = abs(speed)
         cell = board[position]
         is_stationary = steps == 0
         has_completed_lap = False # False by default
-        cells_in_path = [board[position]]
+        #cells_in_path = [board[position]]
         is_cheating = False # False by default
 
         # Stationary
@@ -138,7 +155,7 @@ class GameEngine:
                 direction_delta = direction.delta
                 if speed < 0:
                     direction_index = (current_player.direction_index + 2) % 4
-                    direction_delta = DIRECTION_ORDER[direction_index].delta
+                    direction_delta = DIRECTION_ORDER[direction_index].delta # Use direction_deltas ?
 
                 # Calculate the player's new position for this step
                 step_row = row + direction_delta[0]
@@ -153,7 +170,7 @@ class GameEngine:
                 else:
                     # Assign the new position to the player and get cell type
                     cell = self.model.assign_position(current_player, (step_row, step_column))
-                    cells_in_path.append(cell)
+                    #cells_in_path.append(cell)
 
                     # Apply speed effects and update the player's speed value
                     current_player.speed = speed = self._apply_speed_effects(cell, speed)
@@ -167,30 +184,42 @@ class GameEngine:
                     if laps_completed < self.model.laps_completed[current_player]:
                         has_completed_lap = True
 
+                    if not has_checkpoint and current_player.checkpoint:
+                        checkpoint_acquired = True
+
         self.next_player()
 
         # Adjust the data returned based on Controller requirements
         return {
             "success": True,
             "old_player": current_player,
-            "cells_in_path": cells_in_path, # for whatever reason...
+            #"cells_in_path": cells_in_path, # for whatever reason...
             "current_player": self.model.current_player(),
-            "is_stationary": is_stationary,
+            #"is_stationary": is_stationary,
             "is_cheating": is_cheating,
             "has_completed_lap": has_completed_lap,
+            "checkpoint_acquired": checkpoint_acquired,
             "is_game_over": self.is_game_over()
         }
 
     def _anti_cheat(self, player: Player, original_position: tuple[int, int]) -> bool:
         """
-        _summary_
+        Validate speed metrics and enforce correct track sequence checkpoints.
+
+        Note:
+            If speed bounds are violated, velocity resets to 0 and the player resets 
+            to their turn-start position. 
+            
+            Laps are incremented only when passing the finish line while possessing 
+            both `start_line` and `checkpoint` validations. Passing a finish line resets 
+            both tracking flags to False.
 
         Args:
-            player (Player): _description_
-            original_position (tuple[int, int]): _description_
+            player (Player): The player instance currently undergoing evaluation.
+            original_position (tuple[int, int]): Coords pointing to the player's turn-start position.
 
         Returns:
-            bool: _description_
+            bool: True if an illegal velocity modification or sequence shortcut was caught.
         """
         board = self.model.board
         cell = board[player.position]
@@ -228,13 +257,17 @@ class GameEngine:
 
     def process_move(self, action_taken: Action) -> dict:
         """
-        _summary_
+        Apply structural steering or engine adjustments before resolving movement physics.
 
         Args:
-            action_taken (Action): Action to execute.
+            action_taken (Action): The game action item to apply to the active player.
 
         Returns:
-            dict: Result of the move.
+            dict: Result mapping containing data forwarded from `process_move_to_position`.
+                  Returns `{"success": False}` early if the current player is already crashed.
+
+        Raises:
+            Exception: If an unmapped or invalid Action enum entry reaches this handler.
         """
         self.model.update_turn()
 
@@ -280,7 +313,7 @@ class GameEngine:
             Players with crashed karts are skipped.
 
         Args:
-            apply (bool): If True, updates the model to the next player and returns that player.
+            apply (bool): If True, updates the model to the next player and returns that player.  
                 If False, returns the next player without applying.
 
         Returns:
@@ -311,8 +344,9 @@ class GameEngine:
         """
         Check whether the game has ended.
 
-        The game is considered over when at least one player has completed
-        the maximum laps or everyone's kart crashed.
+        Note:
+            The game is considered over when at least one player has completed
+            the maximum laps or everyone's kart crashed.
 
         Returns:
             bool: True if the game is finished, False otherwise.
@@ -330,12 +364,14 @@ class GameEngine:
         """
         Compute final rankings.
 
-        Determines the winner based on laps completed and orders remaining players.
+        Note:
+            If the leader crashes without completing the lap count requirements, 
+            they are disqualified, resulting in an open DNF bracket with no winner.
 
         Returns:
             dict: Contains  
-                - 'winner': Player with the most laps completed.  
-                - 'losers': Players with fewer laps completed, in descending order.
+                - 'winner': Player instance matching victory criteria, or None.
+                - 'losers': Ordered list of remaining participants.
         """
         temp_level = logger.level
         logger.setLevel(logging.WARNING) # bypass the is_game_over debugging/info logs
@@ -346,7 +382,7 @@ class GameEngine:
         # Sort players by laps completed in descending order
         ranking = sorted(
             self.model.laps_completed.items(),
-            key=lambda item: (item[1], item[0].nb_turns),
+            key=lambda item: item[1],
             reverse=True
         )
 
@@ -354,9 +390,12 @@ class GameEngine:
         losers = [player_and_laps[0] for player_and_laps in ranking[1:]]
 
         laps_completed = self.model.laps_completed
-        if laps_completed[winner] == laps_completed[losers[0]] and winner.nb_turns == losers[0].nb_turns:
-            logger.info(f"It's a draw, there's no winner")
+
+        # If the "winner" crashed without finishing the required laps, they are disqualified
+        if winner and winner.crashed and laps_completed[winner] < self.model.laps_required:
+            logger.info("The last surviving player crashed. No winner.")
             winner = None
+            losers = list(self.model.players) # Everyone goes to the losers bracket
 
         return {
             "winner": winner,

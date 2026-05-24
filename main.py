@@ -15,7 +15,7 @@ from cubee.qtable import SHARED_QTABLE as Cubee_SHARED_QTABLE
 # === Pixel Kart ===
 from pixel_kart.colors import Color as PixelKartColor
 from pixel_kart.player import Human as PixelKartHuman, Player as PixelKartPlayer, AI as PixelKartAI
-from pixel_kart import ai_utils as pk_ai_utils, dao as CircuitDAO
+from pixel_kart import ai_utils as pk_ai_utils, circuit_dao as CircuitDAO
 from pixel_kart.qtable_dao import QTableDAO as PKQTableDAO
 from pixel_kart.qtable import SHARED_QTABLE as PK_SHARED_QTABLE
 from pixel_kart.engine import GameEngine as PKEngine
@@ -30,9 +30,17 @@ import argparse
 import sys
 
 def parse_args():
+    """
+    Parse command-line arguments for configuring the game environment launcher.
+
+    Returns:
+        argparse.Namespace: Parsed arguments detailing execution modes, specific game settings,
+        and AI reinforcement learning hyperparameters.
+    """
+
     parser = argparse.ArgumentParser(
         description=(
-            "AI Project - Reinforcement Learning\n"
+            "AI Project - Reinforcement Learning in Game Environments.\n"
             "Play, simulate, or train Q-Learning agents across three distinct environments: \n"
             "Matches, Cubee, and Pixel Kart. Supports interactive GUI gameplay, headless \n"
             "CLI simulation, and high-efficiency training pipelines."
@@ -52,10 +60,10 @@ def parse_args():
             "     $ python main.py --game pixelkart --train --epochs 5 --eps 100 --efficiency 1\n\n"
             "  4. Deep AI Training (Overnight / Headless)\n"
             "     Train a smart agent at maximum speed without GUI or prompts:\n"
-            "     $ python main.py --game pixelkart --train --epochs 50 --eps 200000 --efficiency 3 --unattended --no-launch\n\n"
+            "     $ python main.py --game pixelkart --train --epochs 50 --eps 200000 --parallel --efficiency 3 --unattended --no-launch -l WARNING\n\n"
             "  5. Watch a Trained AI Drive\n"
             "     Load a saved brain and open the GUI to watch it race:\n"
-            "     $ python main.py --game pixelkart --load-qtable --qtable-path pixel_kart/QTables/qtable_epoch_49.pkl\n\n"
+            "     $ python main.py --game pixelkart --load-qtable --qtable-path pixel_kart/QTables/qtable_epoch_99.pkl\n\n"
             "  6. Headless Race (Not Recommended)\n"
             "     Run a 3-lap text-only race on the 'Large' track:\n"
             "     $ python main.py --game pixelkart --circuit Large --laps 3 --no-gui\n\n"
@@ -82,6 +90,24 @@ def parse_args():
         type=int,
         default=10000,
         help="Number of games per epoch (default: 10000; affects training)"
+    )
+    parser.add_argument(
+        "--lr", "--learning-rate",
+        dest="learning_rate",
+        type=float,
+        default=0.01,
+        help="How much the AI learns from a lesson (default: 0.01; affects training)"
+    )
+    parser.add_argument(
+        "--epsilon",
+        type=float,
+        default=1.0,
+        help="How smart AI should be; 0 for smartest, 1 for random (default: 1.0; affects game & training)"
+    )
+    parser.add_argument(
+        "--parallel",
+        action="store_true",
+        help="Enable multiprocessing for blazingly fast parallel AI training"
     )
     parser.add_argument(
         "--efficiency",
@@ -212,8 +238,8 @@ if __name__ == "__main__":
             "Player 1": PixelKartHuman("Player 1", PixelKartColor.BLUE),
             "Player 2": PixelKartHuman("Player 2", PixelKartColor.PURPLE),
             "Random AI": PixelKartPlayer("Random AI", PixelKartColor.RED),
-            "AI 1": PixelKartAI("AI 1", PixelKartColor.ORANGE),
-            "AI 2": PixelKartAI("AI 2", PixelKartColor.PINK),
+            "AI 1": PixelKartAI("AI 1", PixelKartColor.ORANGE, epsilon=args.epsilon, lr=args.learning_rate, gamma=0.95, training=True),
+            "AI 2": PixelKartAI("AI 2", PixelKartColor.PINK, epsilon=args.epsilon, lr=args.learning_rate, gamma=0.95, training=True),
         }
     }
 
@@ -244,17 +270,22 @@ if __name__ == "__main__":
                 players["pixel_kart"]["AI 2"],
                 epochs=args.epochs,
                 episodes=args.episodes,
+                epsilon=args.epsilon,
                 laps=args.laps,
+                circuit_name=args.circuit,
                 efficiency_level=args.efficiency,
-                unattended=args.unattended
+                unattended=args.unattended,
+                parallel=args.parallel
             )
 
     # === Launch the App ===
     if not args.no_launch:
         if args.no_gui:
+            # Use efficiency 0 to get every output from the controller... otherwise it's unplayable
+            
             logger.info(f"Starting {args.game} in CLI mode")
             # A lot of default values are used
-            # To avoid this, we should extend the arguments...
+            # To avoid this, we should extend the arguments in the `parse_args` function... (future update?)
             if args.game == "pixelkart":
                 grid = CircuitDAO.get_by_name(args.circuit)
                 if not grid:
@@ -270,7 +301,7 @@ if __name__ == "__main__":
                 )
                 engine = PKEngine(model)
                 controller = PKController(engine)
-                controller.run(efficiency_level=0) # Using efficiency 0 to get every output... otherwise it's unplayable
+                controller.run(efficiency_level=0)
 
             elif args.game == "cubee":
                 board = CubeeBoard(5, 5)
@@ -281,7 +312,7 @@ if __name__ == "__main__":
                 )
                 engine = CubeeEngine(model)
                 controller = CubeeController(engine)
-                controller.run(efficiency_level=0) # Using efficiency 0 to get every output... otherwise it's unplayable
+                controller.run(efficiency_level=0)
             else:
                 print(f"CLI mode not fully configured for {args.game} within main.py")
         else:

@@ -2,7 +2,7 @@ from enum import Enum, auto
 
 class Action(Enum):
     """
-    Enumeration of all possible actions.
+    Enumeration of all possible mechanical and structural actions in the game.
     """
 
     ACCELERATE = auto()
@@ -32,8 +32,9 @@ KEY_TO_ACTION = {
     "shift_l": Action.CHEAT
 }
 """
-Mapping of keyboard inputs to actions.  
-Supports both WASD keys and arrow keys for movement (using spacebar for Action.NOTHING).
+dict[str, Action]: Mapping of keyboard inputs to actions.  
+Supports both WASD keys and arrow keys for movement (using spacebar or return for Action.NOTHING).  
+The string keys correspond directly to Tkinter key symbols (`event.keysym`).
 """
 
 AVAILABLE_ACTIONS = (
@@ -41,5 +42,7 @@ AVAILABLE_ACTIONS = (
     Action.TURN_LEFT, Action.TURN_RIGHT, Action.NOTHING
 )
 """
-A tuple containing all actions.
+tuple[Action, ...]: The standard action space available to all regular players 
+    (both humans and Reinforcement Learning agents) during normal gameplay. 
+    Excludes testing hooks like Action.CHEAT.
 """

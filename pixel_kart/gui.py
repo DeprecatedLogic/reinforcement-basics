@@ -6,10 +6,18 @@ logger = logging.getLogger(__name__)
 
 class GUI(tk.Frame):
     """
-    Tkinter GUI for Pixel Kart using a simple Label grid.
-    No external image libraries required.
+    Tkinter interface layout rendering track grids and dashboard telemetry panels.
+
+    Utilizes light matrix arrays of standard label widgets to map underlying cell maps,
+    color overlays, and multi-agent position vectors without external image rendering dependencies.
     """
-    def __init__(self, parent):
+    def __init__(self, parent) -> None:
+        """
+        Initialize structural visual elements, background configurations, and tracking grids.
+
+        Args:
+            parent: The underlying root window thread or master Tkinter structural panel.
+        """
         super().__init__(parent, bg="#2C3E50")
         self.parent = parent
         
@@ -39,8 +47,13 @@ class GUI(tk.Frame):
             3: "◀"  # West
         }
 
-    def create_board(self, grid: list[list[Cell]]):
-        """Draws the initial track using a grid of Tkinter Labels."""
+    def create_board(self, grid: list[list[Cell]]) -> None:
+        """
+        Build the initial 2D label matrix grid matching track size dimensions.
+
+        Args:
+            board_grid (list[list[Cell]]): The layout matrix containing track cell flags.
+        """
         rows = len(grid)
         cols = len(grid[0])
         
@@ -59,9 +72,9 @@ class GUI(tk.Frame):
                 # Determine text/icon
                 base_text = CELL_TO_LABEL.get(special_only, "")
 
-                # Do not show checkpoints
-                if Cell.CHECKPOINT & special_only:
-                    base_text = ""
+                # Do not show checkpoints (?)
+                #if Cell.CHECKPOINT & special_only:
+                #   base_text = ""
                     
                 self.base_texts[row][column] = base_text
                 
@@ -73,9 +86,18 @@ class GUI(tk.Frame):
                 label.grid(row=row, column=column)
                 self.labels[row][column] = label
 
-    def update_karts(self, players: list[Player]):
-        """Wipes old karts by restoring base text, then draws karts at new positions."""
-        # Clear the entire board of karts (restore to default terrain text)
+    def update_karts(self, players: list[Player]) -> None:
+        """
+        Redraw every active agent's directional symbol onto the track matrix grid layer.
+
+        Note:
+            Sweeps and resets prior state cell labels before overlaying fresh spatial mappings 
+            to shield the interface view layer from artifacting loops.
+
+        Args:
+            players (list[Player]): Explicit collection containing every active participant profile.
+        """
+        # Clear the entire board of karts (restore to default text)
         for row in range(len(self.labels)):
             for column in range(len(self.labels[0])):
                 current_text = self.labels[row][column].cget("text")
@@ -96,22 +118,43 @@ class GUI(tk.Frame):
                     
                 self.labels[row][col].config(text=symbol, fg=player.color.value)
 
-    def update_hud(self, current_player: Player, laps_completed: dict):
-        """Updates the speed and lap counters for the current player."""
+    def update_hud(self, current_player: Player, laps_completed: dict) -> None:
+        """
+        Refresh numerical metrics displays on the bottom cockpit telemetry overlay panel.
+
+        Args:
+            current_player (Player): Active profile whose context data is currently evaluated.
+            laps_completed (dict[Player, int]): Standings tracker mapping completed loops.
+        """
         speed = current_player.speed
         laps = laps_completed.get(current_player, 0)
         self.stats_label.config(text=f"{current_player.name} | Speed: {speed} | Laps: {laps}")
 
     def update_turn_message(self, message: str) -> None:
-        """Updates the top message bar."""
+        """
+        Publish string data statements straight into the primary dashboard message bar.
+
+        Args:
+            message (str): Text message payload to be displayed.
+        """
         self.turn_label.config(text=message)
 
     def bind_keys(self, keypress_handler) -> None:
-        """Binds keyboard input to the main Tkinter window."""
+        """
+        Bind high-level global key intercept triggers to the top window frame components.
+
+        Args:
+            keypress_handler: Target function pointer invoked following standard keystrokes.
+        """
         self.bind_all("<Key>", keypress_handler)
 
     def end_game(self, button_command) -> None:
-        """Displays a game over overlay and unbinds the keys."""
+        """
+        Tear down keyboard event listeners and instantiate an absolute match ending overlay modal.
+
+        Args:
+            button_command: Target callback logic executed when restarting loops via button triggers.
+        """
         self.parent.unbind_all("<Key>")
         
         # Overlay frame using place() to center it over the grid

@@ -8,11 +8,15 @@ FILE_PATH = os.path.join(os.path.dirname(__file__), "circuits.pkl")
 
 def get_all() -> dict:
     """
-    Retrieve all circuits from the pickle file.
+    Retrieve all circuits from the pickle database file.
     
+    Note:
+        If the database file does not exist, or if it is corrupt/empty, 
+        this function catches the exception and safe-defaults to an empty dictionary.
+
     Returns:
-        dict: A dictionary mapping circuit names to their 2D grid of Cell Enums.
-              Format: { "Circuit 1": [[Cell.ROAD, Cell.WALL...], ...], ... }
+        dict: A dictionary mapping circuit names (str) to their 2D grid matrix of Cell Enums.
+              Format: { "Circuit Name": [[Cell.ROAD, Cell.WALL...], ...], ... }
     """
     if not os.path.exists(FILE_PATH):
         logger.debug(f"No circuit file found at {FILE_PATH}. Returning empty dict.")
@@ -27,17 +31,34 @@ def get_all() -> dict:
         return {}
 
 def get_by_name(name: str) -> list | None:
-    """Retrieve a specific circuit grid by its name."""
+    """
+    Retrieve a specific circuit layout matrix by its unique name string.
+
+    Args:
+        name (str): The name identifier of the target circuit.
+
+    Returns:
+        list[list[Cell]] | None: A 2D matrix of Cell instances if found; 
+                                 otherwise, returns None.
+    """
     circuits = get_all()
     return circuits.get(name)
 
 def save_circuit(name: str, grid: list) -> None:
     """
-    Save a new circuit to the pickle file.
+    Save a new circuit layout configuration to the pickle database file.
     
+    Note:
+        This function strictly guards against overwriting existing records. 
+        Use `update_circuit` instead if modification of an existing circuit is required.
+
     Args:
-        name (str): The name of the circuit.
-        grid (list[list[Cell]]): The 2D array of Cell Enums.
+        name (str): The unique descriptive name of the circuit.
+        grid (list[list[Cell]]): The 2D matrix of Cell Enums representing the track layout.
+
+    Raises:
+        ValueError: If the name is blank, whitespace-only, or if a circuit 
+                    with that name already exists in the database.
     """
     if not name or not name.strip():
         raise ValueError("Circuit name cannot be empty.")
@@ -53,11 +74,14 @@ def save_circuit(name: str, grid: list) -> None:
 
 def update_circuit(name: str, grid: list) -> None:
     """
-    Overwrite an existing circuit with a new grid.
+    Overwrite an existing circuit configuration in the pickle database file with a new grid.
     
     Args:
-        name (str): _description_
-        grid (list): _description_
+        name (str): The name identifier of the existing circuit to modify.
+        grid (list[list[Cell]]): The updated 2D matrix of Cell Enums.
+
+    Raises:
+        ValueError: If the name is blank or if the circuit does not exist in the database.
     """
     if not name:
         raise ValueError("Circuit name cannot be empty.")
@@ -73,14 +97,13 @@ def update_circuit(name: str, grid: list) -> None:
 
 def delete_circuit(name: str) -> None:
     """
-    Delete a circuit from the pickle file.
+    Remove an existing circuit configuration from the pickle database file.
 
     Args:
-        name (str): _description_
+        name (str): The name identifier of the circuit to delete.
 
     Raises:
-        ValueError: _description_
-        ValueError: _description_
+        ValueError: If the name is blank or if the target circuit does not exist.
     """
     if not name:
         raise ValueError("Circuit name cannot be empty.")
@@ -95,17 +118,32 @@ def delete_circuit(name: str) -> None:
     logger.info(f"Successfully deleted circuit: '{name}'")
 
 def _write_to_file(circuits: dict) -> None:
-    """Helper method to handle the actual pickling process."""
+    """
+    Helper method to handle the physical serialization and disk writing process.
+
+    Args:
+        circuits (dict): The complete state mapping dictionary to serialize.
+    """
     with open(FILE_PATH, "wb") as file:
         pickle.dump(circuits, file)
 
 def import_legacy_txt(txt_file_path: str = os.path.join(os.path.dirname(__file__), "circuits.txt")) -> None:
     """
-    Reads a legacy circuits.txt file, converts the circuits to the new Cell enum grid format,
-    and saves them to the pickle database.
+    Parse a legacy raw text map database, convert characters into bitmasked grid cells, 
+    and append non-conflicting circuits into the modern pickle database.
+
+    Note:
+        In old plain-text track assets, specialized landmarks like lines or markers 
+        replaced the physical track terrain entirely instead of overlaying it. To preserve 
+        underlying physics and GUI constraints, any cell parsed matching `special_bitmask` 
+        is structurally combined with `Cell.ROAD` via a bitwise OR operation.
+        
+        If a record parsed from the text document matches a key that already exists in 
+        the master binary database, it skips compilation passively to prevent unintended overwrites.
 
     Args:
-        txt_file_path (str, optional): _description_. Defaults to os.path.join(os.path.dirname(__file__), "circuits.txt").
+        txt_file_path (str, optional): System file path pointing to the source text file. 
+                                       Defaults to a relative path pointing to "circuits.txt".
     """
     if not os.path.exists(txt_file_path):
         logger.warning(f"Legacy file {txt_file_path} not found.")
@@ -124,7 +162,11 @@ def import_legacy_txt(txt_file_path: str = os.path.join(os.path.dirname(__file__
                 circuit_data = circuit_data.strip()
                 
                 # Skip empty lines or circuits that have already been imported/created
-                if not name or not circuit_data or name in circuits:
+                if not name or not circuit_data:
+                    logger.debug(f"Circuit name or circuit data is empty, skipping line.")
+                    continue
+                elif name in circuits:
+                    logger.debug(f"Skipping legacy circuit '{name}': Already exists in database.")
                     continue
                     
                 grid = []
