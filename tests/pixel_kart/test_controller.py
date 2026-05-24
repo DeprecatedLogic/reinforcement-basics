@@ -103,7 +103,7 @@ def test_automated_turn_loop(setup_controller):
     mock_engine.process_move.return_value = {"success": True}
     
     # Run a single automated turn, acting like a GUI event triggered it
-    controller._handle_automated_turn(gui_event=True)
+    controller._handle_automated_turn(game_state=dummy_state, gui_event=True)
     
     # Because the game isn't over and it's still a bot's turn, 
     # it should schedule the next loop via Tkinter's `after()` method

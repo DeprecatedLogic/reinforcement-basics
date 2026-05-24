@@ -66,4 +66,4 @@ def test_get_opponents():
     ]
     model = GameModel(board, *players)
     players.remove(model.current_player())
-    assert model.get_opponents() == players
+    assert model.get_opponents() == tuple(players)
