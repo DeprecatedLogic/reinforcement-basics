@@ -253,8 +253,9 @@ if __name__ == "__main__":
             training(
                 players["matches"]["Alice"],
                 players["matches"]["Bobby"],
+                nb_games=args.episodes,
                 nb_epsilon=args.epochs,
-                nb_matches=args.episodes
+                nb_matches=25
             )
         elif args.game == "cubee":
             cubee_ai_utils.training(
