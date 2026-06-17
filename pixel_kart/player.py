@@ -424,17 +424,17 @@ class AI(Player):
 
         # Tiered time penalty, rewarding speed by punishing less
         if self.speed == 2:
-            reward = -1 # tiny bleed for maximum speed
+            reward = -0.01 # tiny bleed for maximum speed
         elif self.speed == 1:
-            reward = -5 # medium bleed for slow movement
+            reward = -0.05 # medium bleed for slow movement
         elif self.speed < 0:
-            reward = -10 # penalty for reversing
+            reward = -0.1 # penalty for reversing
         else:
-            reward = -20 # heavy penalty for being completely stationary (self.speed == 0)
+            reward = -0.2 # heavy penalty for being completely stationary (self.speed == 0)
 
         # Instant terminal math for crashes
         if self.crashed:
-            reward = -1000
+            reward = -10
             old_q_values = SHARED_QTABLE.get_state_values(self.previous_state)
             old_q_value = old_q_values[self.previous_action]
             
@@ -447,11 +447,11 @@ class AI(Player):
 
         # Standard rewards
         if is_cheating:
-            reward -= 1000
+            reward -= 10
         if checkpoint_acquired:
-            reward += 500
+            reward += 5
         if has_completed_lap:
-            reward += 1000
+            reward += 10
 
         # Standard Bellman update
         old_q_values = SHARED_QTABLE.get_state_values(self.previous_state)
@@ -503,14 +503,16 @@ class AI(Player):
         Handle victory criteria milestones and queue a positive bonus reward.
         """
         super().win()
-        self.previous_reward += 2000
+        self.previous_reward += 20
+        self.force_terminal_update()
 
     def lose(self) -> None:
         """
         Handle match loss events. (Negative reward updates are commented out in this version).
         """
         super().lose()
-        #self.previous_reward -= 2000
+        self.previous_reward -= 20
+        self.force_terminal_update()
 
     def next_epsilon(self, coefficient = 0.97, minimum_eps = 0.05) -> None:
         """

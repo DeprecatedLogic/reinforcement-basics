@@ -195,12 +195,16 @@ class GameController:
         for loser in losers:
             loser.lose()
 
+        # This is unnecessary because terminal Q-table update
+        # has been moved into Win/Lose methods.
+        """
         # Force terminal Q-Table updates for all AI
         all_players = list(game_state["opponents"]) + [game_state["current_player"]]
         for player in all_players:
             if isinstance(player, AI) and not player.crashed:
                 player.force_terminal_update()
-                
+        """
+
         return leaderboard
 
     def _update_turn_message(self, current_player: Player) -> None:
