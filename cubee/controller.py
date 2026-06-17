@@ -25,6 +25,7 @@ class GameController:
         self.engine = engine
         self.gui: GUI = gui
         self.gui_locked = False
+        self.data = {}
         
     def run(self, efficiency_level: int = 0) -> None:
         """
@@ -44,6 +45,11 @@ class GameController:
         if self.gui:
             self._run_gui_mode(game_state)
         else:
+            players = [game_state["current_player"]]
+            players.extend(game_state["opponents"])
+            for player in players:
+                self.data[player] = {"moves": 0}
+
             self._run_cli_mode(game_state, efficiency_level)
 
     def _run_gui_mode(self, game_state: dict) -> None:
@@ -150,7 +156,9 @@ class GameController:
             action_taken = automated_player.play(self.engine.get_valid_actions())
         response = self.engine.process_move(action_taken)
         
-        automated_player.compute_reward(game_state, response)
+        if isinstance(automated_player, AI):
+            # game state isn't up-to-date but safe if only constants are used!
+            automated_player.compute_reward(game_state, response)
 
         if gui_event:
             self._handle_move_response(response)
@@ -164,7 +172,8 @@ class GameController:
     
     def _handle_move_response(self, response: dict) -> None:
         """
-        Update the GUI after a move has been processed.
+        Update the GUI after a move has been processed
+        and handle game over.
 
         Args:
             response (dict): Engine response containing move result and modified cells.
@@ -181,8 +190,33 @@ class GameController:
 
         if self.engine.is_game_over():
             logger.info("Game over (GUI)")
+            leaderboard = self._handle_game_over_sweep()
             self.gui.end_game(button_command=self.restart_game)
-            self._show_game_over_message()
+            self._show_game_over_message(leaderboard["winner"])
+
+    def _handle_game_over_sweep(self) -> dict:
+        """
+        Distribute win/lose signals.
+
+        Returns:
+            dict: The sorted leaderboard dictionary from the engine.
+        """
+        logger.info("Distributing win/lose signals")
+        leaderboard = self.engine.get_competitive_data()
+        winner = leaderboard["winner"]
+        losers = leaderboard["losers"]
+
+        # Distribute Win/Lose signals
+        if winner:
+            logger.debug(f"Winner ({winner.name}) had {winner.nb_wins} wins and {winner.nb_losses} losses")
+            winner.win()
+            logger.info(f"Winner ({winner.name}) has {winner.nb_wins} wins and {winner.nb_losses} losses")
+        for loser in losers:
+            logger.debug(f"Loser ({loser.name}) had {loser.nb_wins} wins and {loser.nb_losses} losses")
+            loser.lose()
+            logger.info(f"Loser ({loser.name}) has {loser.nb_wins} wins and {loser.nb_losses} losses")
+        
+        return leaderboard
 
     def _update_turn_message(self, current_player: Player) -> None:
         """
@@ -195,13 +229,10 @@ class GameController:
         message = f"It is {name}'{'s' if not name.lower().endswith('s') else ''} turn."
         self.gui.update_turn_message(message)
 
-    def _show_game_over_message(self) -> None:
+    def _show_game_over_message(self, winner: Player) -> None:
         """
         Display the final game over message in the GUI with the winner.
         """
-        game_over_data = self.engine.get_competitive_data()
-        winner = game_over_data["winner"]
-        
         logger.info(f"Winner: {winner.name if winner else 'None'}")
         message = f"Game over! {winner.name} wins!" if winner else "Draw?"
         self.gui.update_turn_message(message)
@@ -231,7 +262,7 @@ class GameController:
                 response = self._handle_automated_turn()
             else:
                 while True:
-                    action_taken = current_player.play()
+                    action_taken = current_player.play(game_state["valid_actions"])
 
                     response = self.engine.process_move(action_taken)
                     if response["success"]:
@@ -239,21 +270,24 @@ class GameController:
                     else:
                         logger.debug(f"{current_player.name} attempted invalid move: {action_taken}")
 
-            if efficiency_level < 1: self._update_board(response["current_player"], response["enclosure_modified_cells"])
+            if efficiency_level < 1:
+                self._update_board(response["current_player"], response["enclosure_modified_cells"])
+
+            current_player_data = self.data[current_player]
+            current_player_data["moves"] += 1
+
             current_player = response["current_player"]
 
-        result = self.engine.get_competitive_data()
-        winner = result["winner"]
-        losers = result["losers"]
-        cells_counter = result["cells_counter"]
-
-        winner.win()
-        for player in losers:
-            player.lose()
-
         logger.info("Game over (CLI)")
-        logger.info(f"Winner: {winner.name}")
-        if efficiency_level < 3: self._print_game_over(winner, losers, cells_counter)
+        
+        result = self._handle_game_over_sweep()
+        winner = result["winner"]
+        logger.info(f"Winner: {winner.name if winner else 'None'}")
+
+        if efficiency_level < 3:
+            losers = result["losers"]
+            cells_counter = result["cells_counter"]
+            self._print_game_over(winner, losers, cells_counter)
 
     def _print_turn(self, current_player: Player) -> None:
         """

@@ -43,9 +43,7 @@ def parse_args():
             "AI Project - Reinforcement Learning in Game Environments.\n"
             "Play, simulate, or train Q-Learning agents across three distinct environments: \n"
             "Matches, Cubee, and Pixel Kart. Supports interactive GUI gameplay, headless \n"
-            "CLI simulation, and high-efficiency training pipelines."
-        ),
-        epilog=(
+            "CLI simulation, and high-efficiency training pipelines.\n\n"
             "===============================================================================\n"
             "     COMMON WORKFLOWS & EXAMPLES (Copy & Paste these to test the project)\n"
             "===============================================================================\n\n"
@@ -111,9 +109,21 @@ def parse_args():
         help="Controls how far and how strongly rewards propagate backward through time (default: 0.95; affects training)"
     )
     parser.add_argument(
+        "--epsilon-coefficient",
+        type=float,
+        default=0.95,
+        help="Controls how fast the epsilon decays, higher is slower (default: 0.95; affects training)"
+    )
+    parser.add_argument(
+        "--min-epsilon",
+        type=float,
+        default=0.05,
+        help="The minimum value epsilon can reach while in training (default: 0.05)"
+    )
+    parser.add_argument(
         "--parallel",
         action="store_true",
-        help="Enable multiprocessing for blazingly fast parallel AI training"
+        help="Enable multiprocessing for faster AI training (WARNING: uses A LOT more memory)"
     )
     parser.add_argument(
         "--efficiency",
@@ -121,6 +131,13 @@ def parse_args():
         default=0,
         choices=[0, 1, 2, 3],
         help="Avoid terminal output, level 3 has no output (default: 0; affects game & training)"
+    )
+    parser.add_argument(
+        "--opp", "--opponent",
+        dest="opponent",
+        default="AI",
+        choices=["AI", "random"],
+        help="Set the opponent with whom the AI will play against (default: %(default)s; affects training)"
     )
 
     parser.add_argument(
@@ -266,10 +283,16 @@ if __name__ == "__main__":
         elif args.game == "cubee":
             cubee_ai_utils.training(
                 players["cubee"]["AI 1"],
-                players["cubee"]["AI 2"],
+                players["cubee"]["AI 2"] if args.opponent == "AI" else players["cubee"]["Random AI"],
                 epochs=args.epochs,
                 episodes=args.episodes,
-                efficiency_level=3
+                epsilon=args.epsilon,
+                efficiency_level=args.efficiency,
+                unattended=args.unattended,
+                parallel=args.parallel,
+                epsilon_coefficient=args.epsilon_coefficient,
+                min_epsilon=args.min_epsilon,
+                epoch_summary=True
             )
         elif args.game == "pixelkart":
             pk_ai_utils.training(

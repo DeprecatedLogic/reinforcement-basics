@@ -235,6 +235,10 @@ class GameModel:
         # Mapping between Cell and Player
         self.cell_to_player = {}
 
+        # Mapping between Player's cell to their owned cell positions
+        # e.g.: {Player.cell : set((0,0), (0,1), (1,1))}
+        #self.player_cell_positions = {}
+
         self._assign_cell_identities()
         self._assign_initial_positions()
         self._assign_initial_turn()
@@ -269,7 +273,8 @@ class GameModel:
                 
                 player.position = corner
                 self.board[player.position] = player.cell
-                logger.debug(f"{player.name} assigned to {corner}")
+                #self.player_cell_positions[player.cell] = {player.position}
+                logger.debug(f"{player.name} assigned to {player.position}")
             else:
                 logger.critical("More players than available starting positions")
                 raise Exception(
@@ -305,10 +310,15 @@ class GameModel:
             bool: True if the new position was an empty cell, otherwise False.
         """
         logger.debug(f"{player.name} moving to {position}")
+
         is_empty = self.board[position] == Cell.EMPTY
         self.board[position] = player.cell
+
+        #self.player_cell_positions[player.cell].add(position)
+
         self.actions_history.setdefault(player.cell, [])
         self.actions_history[player.cell].append(player.position)
+
         player.position = position
         return is_empty
 

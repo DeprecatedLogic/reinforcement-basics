@@ -41,6 +41,7 @@ class GameEngine:
             "opponents": self.model.get_opponents(),
             "next_player": self.next_player(apply=False),
             "valid_actions": self.get_valid_actions(),
+            #"player_cell_positions" : self.model.player_cell_positions,
             #"is_game_over": self.is_game_over()
         }
 

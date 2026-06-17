@@ -16,22 +16,30 @@ class Player:
     Defines the interface for choosing an action.
     """
     player_names_used = []
-
+    duplicate_names_allowed = False # False by default (recommended)
+    player_colors_used = []
+    duplicate_colors_allowed = False # False by default (recommended)
+    
     def __init__(self, name: str, color: Color) -> None:
         """
-        Initialize a player with a unique name and a valid color.
+        Initialize a player with a unique name and valid color.
 
         Args:
-            name (str): Display name of the player (must be unique).
-            color (Color): Color assigned to the player.
+            name (str): Unique identifier and display name string.
+            color (Color): Unique visual identity color selection.
 
         Raises:
-            Exception: If the name is already in use.
+            Exception: If name or color parameters violate active global uniqueness registries.
         """
-        if name in Player.player_names_used:
+        if name in Player.player_names_used and not Player.duplicate_names_allowed:
             logger.error(f"Player name '{name}' already in use")
             raise Exception(f"The name '{name}' is already in use, please enter another name.")
         Player.player_names_used.append(name)
+
+        if color in Player.player_colors_used and not Player.duplicate_colors_allowed:
+            logger.error(f"Player color '{color}' already in use")
+            raise Exception(f"The color '{color.value}' is already in use, please use another color.")
+        Player.player_colors_used.append(color)
 
         self.name = name
         self.color = color
@@ -271,7 +279,7 @@ class AI(Player):
         self.previous_action = None
         self.last_reward = 0
         self.nb_cells = 1 # every player starts with at least 1 cell
-        self.training = True
+        self.training = training
         logger.debug(
             f"Created a Cubee AI with the following parameters:\n\
             - Epsilon: {self.epsilon}\n\
@@ -281,12 +289,44 @@ class AI(Player):
         )
 
     def play(self, game_state: dict):
-        valid_actions = game_state["valid_actions"]
+        """
+        Select and execute the next action for the AI player based on the current game state.
+
+        If the AI is in training mode and a previous state-action pair exists, this 
+        method updates the Q-table values using the temporal difference Q-learning formula:
+        Q(s, a) <- Q(s, a) + alpha * [r + gamma * max_a'(Q(s', a')) - Q(s, a)]
+
+        The action selection follows an epsilon-greedy strategy: a random action is 
+        chosen with probability epsilon (exploration), and the action with the highest 
+        Q-value is chosen with probability 1 - epsilon (exploitation).
+
+        Args:
+            game_state (dict): A snapshot of the environment containing:
+                - "board_grid" (list[list[Cell]]): The current 2D layout of the board.
+                - "board_rows" (int): Total rows of the grid.
+                - "board_columns" (int): Total columns of the grid.
+                - "current_player" (AI): The AI instance currently moving.
+                - "opponents" (tuple[Player]): Other active players on the board.
+                - "next_player" (Player): The player scheduled to move next.
+                - "valid_actions" (list[Action]): Available directions the AI can move.
+
+        Returns:
+            Action: The selected movement direction (UP, DOWN, LEFT, or RIGHT).
+        """
+        # Get positions
         me: AI = game_state["current_player"]
         opponents = game_state["opponents"]
-        state = me.position
-        for opponent in opponents:
-            state += opponent.position
+        
+        board_grid = game_state["board_grid"]
+        valid_actions = game_state["valid_actions"]
+
+        # Convert the entire board grid layout to a flat string tuple/key,
+        # creating a predictable 25-character string representation of the grid
+        grid_flat = "".join(str(cell.value) for row in board_grid for cell in row)
+        
+        # Combine with absolute player positions to preserve local context
+        # Format is: ((my_row, my_col), (opp_row, opp_col), "000111222000...")
+        state = (me.position, tuple(opp.position for opp in opponents), grid_flat)
 
         if self.training:
             if self.previous_state is not None:
@@ -304,6 +344,9 @@ class AI(Player):
 
                 # Store updated value
                 SHARED_QTABLE.update_state_values(self.previous_state, prev_index, new_value)
+
+                # Clear the reward signal so the next step starts from a clean baseline
+                self.last_reward = 0
 
         q_values = SHARED_QTABLE.get_state_values(state)
 
@@ -341,14 +384,44 @@ class AI(Player):
                 - "enclosure_modified_cells" (list): Cells affected by an enclosure.
         """
         reward = response["nb_cells_gained"]
+        
+        if reward == 0: # bleeding
+            reward -= 0.1
 
         # Enclosure bonuses
-        board_size = game_state["board_rows"] * game_state["board_columns"]
-        ratio = reward / board_size
-        enclosure_reward_value = int(50 * ratio) # For natural scaling instead of random numbers
-
         if len(response["enclosure_modified_cells"]) > 0:
+            board_size = game_state["board_rows"] * game_state["board_columns"]
+            ratio = reward / board_size
+            enclosure_reward_value = 50 * ratio # for natural scaling instead of random numbers
+            
             reward += enclosure_reward_value
+
+        self.last_reward += reward
+
+    def force_terminal_update(self) -> None:
+        """
+        Commit delayed game-over rewards into tables at match conclusion intervals.
+
+        Note:
+            Drops future lookup components (gamma terms) to evaluate absolute terminal states.
+        """
+        if not self.training or self.previous_state is None or self.previous_action is None:
+            return
+
+        if self.last_reward == 0:
+            return
+
+        logger.debug(f"Flushing pending terminal reward: {self.last_reward} points")
+
+        old_q_values = SHARED_QTABLE.get_state_values(self.previous_state)
+        previous_action_index = ACTION_TO_INDEX[self.previous_action]
+        old_q_value = old_q_values[previous_action_index]
+
+        # For a terminal state, there are no future actions, so we drop the gamma * max(Q) term
+        # We only apply the final pending reward (which contains the win/lose score)
+        new_q_value = old_q_value + self.lr * (self.last_reward - old_q_value)
+        
+        SHARED_QTABLE.update_state_values(self.previous_state, previous_action_index, new_q_value)
 
     def win(self) -> None:
         """
@@ -358,6 +431,7 @@ class AI(Player):
         """
         super().win()
         self.last_reward += 10
+        self.force_terminal_update()
 
     def lose(self) -> None:
         """
@@ -367,6 +441,7 @@ class AI(Player):
         """
         super().lose()
         self.last_reward -= 10
+        self.force_terminal_update()
 
     def next_epsilon(self, coefficient = 0.95, minimum_eps = 0.05) -> None:
         """
@@ -380,4 +455,10 @@ class AI(Player):
         if self.epsilon < minimum_eps:
             self.epsilon = minimum_eps
 
-        logger.debug(f"Epsilon for AI ({self.name}, {self.cell.name}) set to: {self.epsilon}")
+        logger.debug(f"Epsilon for AI ({self.name}, {self.cell}) set to: {self.epsilon}")
+
+    def reset_episodic_tracking(self) -> None:
+        """Clear episodic history variables before a new match begins."""
+        self.previous_state = None
+        self.previous_action = None
+        self.last_reward = 0
