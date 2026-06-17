@@ -105,6 +105,12 @@ def parse_args():
         help="How smart AI should be; 0 for smartest, 1 for random (default: 1.0; affects game & training)"
     )
     parser.add_argument(
+        "--gamma",
+        type=float,
+        default=0.95,
+        help="Controls how far and how strongly rewards propagate backward through time (default: 0.95; affects training)"
+    )
+    parser.add_argument(
         "--parallel",
         action="store_true",
         help="Enable multiprocessing for blazingly fast parallel AI training"
@@ -114,7 +120,7 @@ def parse_args():
         type=int,
         default=0,
         choices=[0, 1, 2, 3],
-        help="Avoid terminal output, level 3 has no output (default: 0; affects training)"
+        help="Avoid terminal output, level 3 has no output (default: 0; affects game & training)"
     )
 
     parser.add_argument(
@@ -223,23 +229,23 @@ if __name__ == "__main__":
             "Player 1": MatchesHuman("Player 1"),
             "Player 2": MatchesHuman("Player 2"),
             "Random AI": MatchesPlayer("Random AI"),
-            "Alice": MatchesAI("Alice"),
-            "Bobby": MatchesAI("Bobby"),
-            "Randy": MatchesAI("Randy")
+            "Alice": MatchesAI("Alice", epsilon=args.epsilon, lr=args.learning_rate, gamma=args.gamma),
+            "Bobby": MatchesAI("Bobby", epsilon=args.epsilon, lr=args.learning_rate, gamma=args.gamma),
+            "Randy": MatchesAI("Randy", epsilon=args.epsilon, lr=args.learning_rate, gamma=args.gamma)
         },
         "cubee": {
             "Player 1": CubeeHuman("Player 1", CubeeColor.RED),
             "Player 2": CubeeHuman("Player 2", CubeeColor.BLUE),
-            "Random AI": CubeeHuman("Random AI", CubeeColor.ORANGE),
-            "AI 1": CubeeAI("AI 1", CubeeColor.GREEN, lr=0.1),
-            "AI 2": CubeeAI("AI 2", CubeeColor.PURPLE, lr=0.1)
+            "Random AI": CubeePlayer("Random AI", CubeeColor.ORANGE),
+            "AI 1": CubeeAI("AI 1", CubeeColor.GREEN, epsilon=args.epsilon, lr=args.learning_rate, gamma=args.gamma, training=True),
+            "AI 2": CubeeAI("AI 2", CubeeColor.PURPLE, epsilon=args.epsilon, lr=args.learning_rate, gamma=args.gamma, training=True)
         },
         "pixel_kart": {
             "Player 1": PixelKartHuman("Player 1", PixelKartColor.BLUE),
             "Player 2": PixelKartHuman("Player 2", PixelKartColor.PURPLE),
             "Random AI": PixelKartPlayer("Random AI", PixelKartColor.RED),
-            "AI 1": PixelKartAI("AI 1", PixelKartColor.ORANGE, epsilon=args.epsilon, lr=args.learning_rate, gamma=0.95, training=True),
-            "AI 2": PixelKartAI("AI 2", PixelKartColor.PINK, epsilon=args.epsilon, lr=args.learning_rate, gamma=0.95, training=True),
+            "AI 1": PixelKartAI("AI 1", PixelKartColor.ORANGE, epsilon=args.epsilon, lr=args.learning_rate, gamma=args.gamma, training=True),
+            "AI 2": PixelKartAI("AI 2", PixelKartColor.PINK, epsilon=args.epsilon, lr=args.learning_rate, gamma=args.gamma, training=True),
         }
     }
 
@@ -249,7 +255,7 @@ if __name__ == "__main__":
         
         if args.game == "matches":
             # Epochs in this case are used as `nb_epsilon` because matches' architecture is old
-            # and different from the rest of the games
+            # and different from the rest of the games (it's used to decrease epsilon by doing: current_game_number % nb_epsilon)
             training(
                 players["matches"]["Alice"],
                 players["matches"]["Bobby"],
