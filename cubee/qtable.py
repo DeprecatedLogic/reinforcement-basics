@@ -48,5 +48,3 @@ class QTable:
             result.append(values + "\n")
 
         return ''.join(result)
-
-SHARED_QTABLE = QTable()

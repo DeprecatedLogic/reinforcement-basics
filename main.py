@@ -10,7 +10,6 @@ from cubee.engine import GameEngine as CubeeEngine
 from cubee.controller import GameController as CubeeController
 from cubee import ai_utils as cubee_ai_utils
 from cubee.qtable_dao import QTableDAO
-from cubee.qtable import SHARED_QTABLE as Cubee_SHARED_QTABLE
 
 # === Pixel Kart ===
 from pixel_kart.colors import Color as PixelKartColor
@@ -34,8 +33,8 @@ def parse_args():
     Parse command-line arguments for configuring the game environment launcher.
 
     Returns:
-        argparse.Namespace: Parsed arguments detailing execution modes, specific game settings,
-        and AI reinforcement learning hyperparameters.
+        argparse.Namespace: Parsed arguments detailing execution modes, specific game settings,  
+            and AI reinforcement learning hyperparameters.
     """
 
     parser = argparse.ArgumentParser(
@@ -61,7 +60,7 @@ def parse_args():
             "     $ python main.py --game pixelkart --train --epochs 50 --eps 200000 --parallel --efficiency 3 --unattended --no-launch -l WARNING\n\n"
             "  5. Watch a Trained AI Drive\n"
             "     Load a saved brain and open the GUI to watch it race:\n"
-            "     $ python main.py --game pixelkart --load-qtable --qtable-path pixel_kart/QTables/qtable_epoch_99.pkl\n\n"
+            "     $ python main.py --game pixelkart --qtable-path pixel_kart/QTables/qtable_epoch_99.pkl\n\n"
             "  6. Headless Race (Not Recommended)\n"
             "     Run a 3-lap text-only race on the 'Large' track:\n"
             "     $ python main.py --game pixelkart --circuit Large --laps 3 --no-gui\n\n"
@@ -80,45 +79,45 @@ def parse_args():
         "--epochs",
         type=int,
         default=50,
-        help="Number of epochs for AI training (default: 50; affects training)"
+        help="Number of epochs for AI training (default: %(default)s; affects training)"
     )
     parser.add_argument(
         "--eps", "--episodes",
         dest="episodes",
         type=int,
         default=10000,
-        help="Number of games per epoch (default: 10000; affects training)"
+        help="Number of games per epoch (default: %(default)s; affects training)"
     )
     parser.add_argument(
         "--lr", "--learning-rate",
         dest="learning_rate",
         type=float,
         default=0.01,
-        help="How much the AI learns from a lesson (default: 0.01; affects training)"
+        help="How much the AI learns from a lesson (default: %(default)s; affects training)"
     )
     parser.add_argument(
         "--epsilon",
         type=float,
         default=1.0,
-        help="How smart AI should be; 0 for smartest, 1 for random (default: 1.0; affects game & training)"
+        help="How smart AI should be; 0 for smartest, 1 for random (default: %(default)s; affects game & training)"
     )
     parser.add_argument(
         "--gamma",
         type=float,
         default=0.95,
-        help="Controls how far and how strongly rewards propagate backward through time (default: 0.95; affects training)"
+        help="Controls how far and how strongly rewards propagate backward through time (default: %(default)s; affects training)"
     )
     parser.add_argument(
         "--epsilon-coefficient",
         type=float,
         default=0.95,
-        help="Controls how fast the epsilon decays, higher is slower (default: 0.95; affects training)"
+        help="Controls how fast the epsilon decays, higher is slower (default: %(default)s; affects training)"
     )
     parser.add_argument(
         "--min-epsilon",
         type=float,
         default=0.05,
-        help="The minimum value epsilon can reach while in training (default: 0.05)"
+        help="The minimum value epsilon can reach while in training (default: %(default)s)"
     )
     parser.add_argument(
         "--parallel",
@@ -130,7 +129,7 @@ def parse_args():
         type=int,
         default=0,
         choices=[0, 1, 2, 3],
-        help="Avoid terminal output, level 3 has no output (default: 0; affects game & training)"
+        help="Avoid terminal output, level 3 has no output (default: %(default)s; affects game & training)"
     )
     parser.add_argument(
         "--opp", "--opponent",
@@ -144,7 +143,7 @@ def parse_args():
         "--game",
         default="cubee",
         choices=["matches", "cubee", "pixelkart"],
-        help="The desired game out of the three (default: cubee; affects CLI, Q-Table, and training)"
+        help="The desired game out of the three (default: %(default)s; affects CLI, Q-Table, and training)"
     )
     parser.add_argument(
         "--no-launch",
@@ -160,7 +159,7 @@ def parse_args():
         "--circuit",
         type=str,
         default="Basic",
-        help="The circuit's name to load (default: Basic; affects CLI)"
+        help="The circuit's name to load (default: %(default)s; affects CLI)"
     )
     parser.add_argument(
         "--show-circuits",
@@ -171,7 +170,7 @@ def parse_args():
         "--laps",
         type=int,
         default=1,
-        help="Number of laps required to win (default: 1; affects CLI and training)"
+        help="Number of laps required to win (default: %(default)s; affects CLI and training)"
     )
     parser.add_argument(
         "--train",
@@ -179,9 +178,20 @@ def parse_args():
         help="Enable AI training"
     )
     parser.add_argument(
-        "--load-qtable",
+        "--test",
         action="store_true",
-        help="Load Q-table from file"
+        help="Enable AI evaluation/testing mode"
+    )
+    parser.add_argument(
+        "--test-matches",
+        type=int,
+        default=500,
+        help="Number of matches to play during testing mode (default: %(default)s)"
+    )
+    parser.add_argument(
+        "--skip-checkpoints",
+        action="store_true",
+        help="Do not create a checkpoint for every epoch"
     )
     parser.add_argument(
         "--unattended",
@@ -192,8 +202,14 @@ def parse_args():
     parser.add_argument(
         "--qtable-path",
         type=str,
+        nargs="+",
         default=None,
-        help="Path to Q-table file (e.g.: cubee/QTables/qtable_epoch_50.pkl)"
+        help="Path(s) to Q-table file(s) (accepts 1 or 2 paths, e.g.: cubee/QTables/qtable_epoch_50.pkl cubee/QTables/qtable_epoch_99.pkl)"
+    )
+    parser.add_argument(
+        "--share-qtable",
+        action="store_true",
+        help="Share a single Q-table instance between AI 1 and AI 2"
     )
 
     return parser.parse_args()
@@ -222,24 +238,6 @@ if __name__ == "__main__":
             print(f"    {name}")
         sys.exit(0)
 
-    # === Load Pre-Trained Brain (Inference) ===
-    if args.load_qtable and args.qtable_path:
-        logger.info(f"Loading Q-Table from {args.qtable_path} for game {args.game}")
-        try:
-            if args.game == "cubee":
-                loaded_table = QTableDAO.load(args.qtable_path)
-                Cubee_SHARED_QTABLE.storage = loaded_table.storage
-                logger.info(f"Successfully loaded {len(Cubee_SHARED_QTABLE.storage)} states into Cubee memory.")
-            elif args.game == "pixelkart":
-                loaded_table = PKQTableDAO.load(args.qtable_path)
-                PK_SHARED_QTABLE.storage = loaded_table.storage
-                logger.info(f"Successfully loaded {len(PK_SHARED_QTABLE.storage)} states into Pixel Kart memory.")
-            else:
-                logger.info(f"Cannot load Q-Table for the game '{args.game}', skipping")
-        except Exception as e:
-            logger.error(f"Failed to load Q-Table: {e}")
-            sys.exit(1)
-
     # === Player Dictionary ===
     players = {
         "matches": {
@@ -254,17 +252,58 @@ if __name__ == "__main__":
             "Player 1": CubeeHuman("Player 1", CubeeColor.RED),
             "Player 2": CubeeHuman("Player 2", CubeeColor.BLUE),
             "Random AI": CubeePlayer("Random AI", CubeeColor.ORANGE),
-            "AI 1": CubeeAI("AI 1", CubeeColor.GREEN, epsilon=args.epsilon, lr=args.learning_rate, gamma=args.gamma, training=True),
-            "AI 2": CubeeAI("AI 2", CubeeColor.PURPLE, epsilon=args.epsilon, lr=args.learning_rate, gamma=args.gamma, training=True)
+            "AI 1": CubeeAI("AI 1", CubeeColor.GREEN, epsilon=args.epsilon, lr=args.learning_rate, gamma=args.gamma, training=False),
+            "AI 2": CubeeAI("AI 2", CubeeColor.PURPLE, epsilon=args.epsilon, lr=args.learning_rate, gamma=args.gamma, training=False)
         },
         "pixel_kart": {
             "Player 1": PixelKartHuman("Player 1", PixelKartColor.BLUE),
             "Player 2": PixelKartHuman("Player 2", PixelKartColor.PURPLE),
             "Random AI": PixelKartPlayer("Random AI", PixelKartColor.RED),
-            "AI 1": PixelKartAI("AI 1", PixelKartColor.ORANGE, epsilon=args.epsilon, lr=args.learning_rate, gamma=args.gamma, training=True),
-            "AI 2": PixelKartAI("AI 2", PixelKartColor.PINK, epsilon=args.epsilon, lr=args.learning_rate, gamma=args.gamma, training=True),
+            "AI 1": PixelKartAI("AI 1", PixelKartColor.ORANGE, epsilon=args.epsilon, lr=args.learning_rate, gamma=args.gamma, training=False),
+            "AI 2": PixelKartAI("AI 2", PixelKartColor.PINK, epsilon=args.epsilon, lr=args.learning_rate, gamma=args.gamma, training=False),
         }
     }
+
+    # === Load Pre-Trained Brains (Inference / Testing) ===
+    if args.qtable_path:
+        logger.info(f"Loading Q-Table(s) from {args.qtable_path} for game {args.game}")
+        try:
+            if args.game == "cubee":
+                ai_keys = ["AI 1", "AI 2"]
+                for idx, path in enumerate(args.qtable_path[:2]):
+                    loaded_table = QTableDAO.load(path)
+                    target_ai = players["cubee"][ai_keys[idx]]
+                    target_ai.qtable = loaded_table
+                    logger.info(f"Successfully loaded {len(loaded_table.storage)} states into {target_ai.name} memory from {path}")
+            elif args.game == "pixelkart":
+                loaded_table = PKQTableDAO.load(args.qtable_path[0])
+                PK_SHARED_QTABLE.storage = loaded_table.storage
+                logger.info(f"Successfully loaded {len(PK_SHARED_QTABLE.storage)} states into Pixel Kart memory")
+            else:
+                logger.info(f"Cannot load Q-Table for the game '{args.game}', skipping")
+        except Exception as e:
+            logger.error(f"Failed to load Q-Table: {e}")
+            sys.exit(1)
+
+    # === Share Q-Table if requested ===
+    if args.share_qtable and args.game == "cubee":
+        players["cubee"]["AI 2"].qtable = players["cubee"]["AI 1"].qtable
+        logger.info("Shared Q-Table mode enabled: AI 2's qtable now points to AI 1's qtable")
+
+    # === Run Testing ===
+    if args.test:
+        logger.info(f"Starting {args.game.upper()} AI Testing ({args.test_matches} matches)")
+        if args.game == "cubee":
+            # Auto-detect opponents based on number of provided qtable paths
+            p1 = players["cubee"]["AI 1"]
+            if args.qtable_path and len(args.qtable_path) >= 2:
+                p2 = players["cubee"]["AI 2"]
+            else:
+                p2 = players["cubee"]["Random AI"] if args.opponent == "random" else players["cubee"]["AI 2"]
+
+            cubee_ai_utils.test_ais(p1, p2, nb_matches=args.test_matches, efficiency_level=args.efficiency)
+        else:
+            print(f"Testing mode not implemented for {args.game}")
 
     # === Run Training ===
     if args.train:
@@ -292,7 +331,12 @@ if __name__ == "__main__":
                 parallel=args.parallel,
                 epsilon_coefficient=args.epsilon_coefficient,
                 min_epsilon=args.min_epsilon,
-                epoch_summary=True
+                gamma=args.gamma,
+                learning_rate=args.learning_rate,
+                opponent=args.opponent,
+                skip_checkpoints=args.skip_checkpoints,
+                epoch_summary=True,
+                shared_qtable=args.share_qtable
             )
         elif args.game == "pixelkart":
             pk_ai_utils.training(
@@ -309,9 +353,10 @@ if __name__ == "__main__":
             )
 
     # === Launch the App ===
-    if not args.no_launch:
+    if not args.no_launch and not args.test:
         if args.no_gui:
             # Use efficiency 0 to get every output from the controller... otherwise it's unplayable
+            # unless you can imagine the whole board and every move your opponent and you are making :P
             
             logger.info(f"Starting {args.game} in CLI mode")
             # A lot of default values are used

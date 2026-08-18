@@ -194,15 +194,23 @@ class GameController:
             self.gui.end_game(button_command=self.restart_game)
             self._show_game_over_message(leaderboard["winner"])
 
-    def _handle_game_over_sweep(self) -> dict:
+    def _handle_game_over_sweep(self, is_draw: bool = False) -> dict:
         """
         Distribute win/lose signals.
+
+        Args:
+            is_draw (bool): If True, overrides the outcome to a draw.
 
         Returns:
             dict: The sorted leaderboard dictionary from the engine.
         """
         logger.info("Distributing win/lose signals")
         leaderboard = self.engine.get_competitive_data()
+
+        if is_draw:
+            leaderboard["winner"] = None
+            return leaderboard
+
         winner = leaderboard["winner"]
         losers = leaderboard["losers"]
 
@@ -210,11 +218,11 @@ class GameController:
         if winner:
             logger.debug(f"Winner ({winner.name}) had {winner.nb_wins} wins and {winner.nb_losses} losses")
             winner.win()
-            logger.info(f"Winner ({winner.name}) has {winner.nb_wins} wins and {winner.nb_losses} losses")
+            logger.info(f"Winner ({winner.name}) now has {winner.nb_wins} wins and {winner.nb_losses} losses")
         for loser in losers:
             logger.debug(f"Loser ({loser.name}) had {loser.nb_wins} wins and {loser.nb_losses} losses")
             loser.lose()
-            logger.info(f"Loser ({loser.name}) has {loser.nb_wins} wins and {loser.nb_losses} losses")
+            logger.info(f"Loser ({loser.name}) now has {loser.nb_wins} wins and {loser.nb_losses} losses")
         
         return leaderboard
 
@@ -252,7 +260,12 @@ class GameController:
         logger.info(f"Running CLI game loop with efficiency level {efficiency_level}")
 
         current_player = game_state["current_player"]
-        while not self.engine.is_game_over():
+
+        # Prevent infinite loops during AI vs AI matches
+        max_turns = 200
+        turn_count = 0
+
+        while not self.engine.is_game_over() and turn_count < max_turns:
             logger.debug(f"Turn: {current_player.name}")
             if efficiency_level < 2:
                 if efficiency_level == 0: self._print_board()
@@ -269,6 +282,7 @@ class GameController:
                         break
                     else:
                         logger.debug(f"{current_player.name} attempted invalid move: {action_taken}")
+                        continue
 
             if efficiency_level < 1:
                 self._update_board(response["current_player"], response["enclosure_modified_cells"])
@@ -277,10 +291,14 @@ class GameController:
             current_player_data["moves"] += 1
 
             current_player = response["current_player"]
+            turn_count += 1
+
+        if turn_count >= max_turns:
+            logger.warning(f"Match terminated early: reached turn limit of {max_turns}.")
 
         logger.info("Game over (CLI)")
         
-        result = self._handle_game_over_sweep()
+        result = self._handle_game_over_sweep(is_draw=turn_count >= max_turns)
         winner = result["winner"]
         logger.info(f"Winner: {winner.name if winner else 'None'}")
 

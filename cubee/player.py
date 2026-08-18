@@ -3,7 +3,7 @@ from cubee.actions import Action, ACTION_TO_INDEX
 from cubee.colors import Color
 from random import choice, random
 import readchar
-from cubee.qtable import SHARED_QTABLE
+from cubee.qtable import QTable
 #from contextlib import contextmanager
 import logging
 logger = logging.getLogger(__name__)
@@ -262,7 +262,7 @@ class AI(Player):
     Automated player controlled by AI logic.
     """
 
-    def __init__(self, name: str, color: Color, epsilon: float = 0.9, lr: float = 0.01, gamma: float = 0.9, training: bool = True) -> None:
+    def __init__(self, name: str, color: Color, epsilon: float = 0.9, lr: float = 0.01, gamma: float = 0.9, training: bool = True, qtable: QTable|None = None) -> None:
         """
         Initialize an AI player.
 
@@ -280,6 +280,7 @@ class AI(Player):
         self.last_reward = 0
         self.nb_cells = 1 # every player starts with at least 1 cell
         self.training = training
+        self.qtable = qtable if qtable else QTable()
         logger.debug(
             f"Created a Cubee AI with the following parameters:\n\
             - Epsilon: {self.epsilon}\n\
@@ -331,24 +332,24 @@ class AI(Player):
         if self.training:
             if self.previous_state is not None:
                 # Get old Q value for formula
-                prev_q_values = SHARED_QTABLE.get_state_values(self.previous_state)
+                prev_q_values = self.qtable.get_state_values(self.previous_state)
                 prev_index = ACTION_TO_INDEX[self.previous_action]
                 old_value = prev_q_values[prev_index]
 
                 # Get max Q value for current state (best future value)
-                current_q_values = SHARED_QTABLE.get_state_values(state)
+                current_q_values = self.qtable.get_state_values(state)
                 max_next = max(current_q_values)
 
                 # Q-learning formula Q(s,a)← Q(s,a)+α[r+γ*maxa′​Q(s′,a′)−Q(s,a)] => old Q value + learning rate *(reward + gamma * max_next - old Q value)
                 new_value = old_value + self.lr * (self.last_reward + self.gamma * max_next - old_value)
 
                 # Store updated value
-                SHARED_QTABLE.update_state_values(self.previous_state, prev_index, new_value)
+                self.qtable.update_state_values(self.previous_state, prev_index, new_value)
 
                 # Clear the reward signal so the next step starts from a clean baseline
                 self.last_reward = 0
 
-        q_values = SHARED_QTABLE.get_state_values(state)
+        q_values = self.qtable.get_state_values(state)
 
         best_value = float('-inf')
         best_action = None
@@ -413,7 +414,7 @@ class AI(Player):
 
         logger.debug(f"Flushing pending terminal reward: {self.last_reward} points")
 
-        old_q_values = SHARED_QTABLE.get_state_values(self.previous_state)
+        old_q_values = self.qtable.get_state_values(self.previous_state)
         previous_action_index = ACTION_TO_INDEX[self.previous_action]
         old_q_value = old_q_values[previous_action_index]
 
@@ -421,7 +422,7 @@ class AI(Player):
         # We only apply the final pending reward (which contains the win/lose score)
         new_q_value = old_q_value + self.lr * (self.last_reward - old_q_value)
         
-        SHARED_QTABLE.update_state_values(self.previous_state, previous_action_index, new_q_value)
+        self.qtable.update_state_values(self.previous_state, previous_action_index, new_q_value)
 
     def win(self) -> None:
         """
