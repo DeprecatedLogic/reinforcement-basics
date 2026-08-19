@@ -107,8 +107,8 @@ def test_ais(p1: Player, p2: Player, nb_matches: int = 500, efficiency_level: in
         nb_matches (int): _description_
         efficiency_level (int): _description_
     """
-    p1_training_mode = p1.training
-    p2_training_mode = p2.training
+    p1_training_mode = p1.training if isinstance(p1, AI) else None
+    p2_training_mode = p2.training if isinstance(p2, AI) else None
     set_mode(p1, p2, training_mode=False)
 
     p1_moves = 0
@@ -154,7 +154,10 @@ def test_ais(p1: Player, p2: Player, nb_matches: int = 500, efficiency_level: in
     p2_wins = (p2.nb_wins - p2_wins_start) if hasattr(p2, 'nb_wins') else 0
     draws = nb_matches - (p1_wins + p2_wins)
 
-    for p, wins, moves, rewards in [(p1, p1_wins, p1_moves, p1_rewards), (p2, p2_wins, p2_moves, p2_rewards)]:
+    for p, wins, moves, rewards in [
+        (p1, p1_wins, p1_moves, p1_rewards),
+        (p2, p2_wins, p2_moves, p2_rewards)
+    ]:
         print(f"### Performance Summary ({p.name}) ###")
         if isinstance(p, AI):
             print(f"    - Epsilon:            {p.epsilon:.4f}")
@@ -167,8 +170,10 @@ def test_ais(p1: Player, p2: Player, nb_matches: int = 500, efficiency_level: in
     print(f"    - Draws:              {draws} ({(draws / nb_matches) * 100:.2f}%)")
     print("=========================================\n")
 
-    set_mode(p1, training_mode=p1_training_mode)
-    set_mode(p2, training_mode=p2_training_mode)
+    if p1_training_mode:
+        set_mode(p1, training_mode=p1_training_mode)
+    if p2_training_mode:
+        set_mode(p2, training_mode=p2_training_mode)
 
 def training(
     *ais, epochs: int, episodes: int, epsilon: float,
