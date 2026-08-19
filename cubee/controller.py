@@ -194,26 +194,37 @@ class GameController:
             self.gui.end_game(button_command=self.restart_game)
             self._show_game_over_message(leaderboard["winner"])
 
-    def _handle_game_over_sweep(self, is_draw: bool = False) -> dict:
+    def _handle_game_over_sweep(self, is_draw: bool = False, odd_nb_cells: bool = True) -> dict:
         """
         Distribute win/lose signals.
 
         Args:
             is_draw (bool): If True, overrides the outcome to a draw.
+            odd_nb_cells (bool): Passed to the AI's draw function.
 
         Returns:
             dict: The sorted leaderboard dictionary from the engine.
         """
-        logger.info("Distributing win/lose signals")
+        logger.info("Distributing win/lose/draw signals")
         leaderboard = self.engine.get_competitive_data()
-
-        if is_draw:
-            leaderboard["winner"] = None
-            return leaderboard
 
         winner = leaderboard["winner"]
         losers = leaderboard["losers"]
+        
+        if is_draw:
+            if isinstance(winner, AI):
+                winner.draw(odd_nb_cells)
+            else:
+                winner.draw()
 
+            for loser in losers:
+                if isinstance(loser, AI):
+                    loser.draw(odd_nb_cells)
+                else:
+                    loser.draw()
+            leaderboard["winner"] = None
+            return leaderboard
+        
         # Distribute Win/Lose signals
         if winner:
             logger.debug(f"Winner ({winner.name}) had {winner.nb_wins} wins and {winner.nb_losses} losses")
@@ -260,12 +271,8 @@ class GameController:
         logger.info(f"Running CLI game loop with efficiency level {efficiency_level}")
 
         current_player = game_state["current_player"]
-
-        # Prevent infinite loops during AI vs AI matches
-        max_turns = 200
-        turn_count = 0
-
-        while not self.engine.is_game_over() and turn_count < max_turns:
+        current_turn = game_state["current_turn"]
+        while not self.engine.is_game_over() and current_turn < self.engine.max_turns:
             logger.debug(f"Turn: {current_player.name}")
             if efficiency_level < 2:
                 if efficiency_level == 0: self._print_board()
@@ -283,6 +290,8 @@ class GameController:
                     else:
                         logger.debug(f"{current_player.name} attempted invalid move: {action_taken}")
                         continue
+                    
+            current_turn = response["current_turn"]
 
             if efficiency_level < 1:
                 self._update_board(response["current_player"], response["enclosure_modified_cells"])
@@ -291,14 +300,13 @@ class GameController:
             current_player_data["moves"] += 1
 
             current_player = response["current_player"]
-            turn_count += 1
-
-        if turn_count >= max_turns:
-            logger.warning(f"Match terminated early: reached turn limit of {max_turns}.")
 
         logger.info("Game over (CLI)")
         
-        result = self._handle_game_over_sweep(is_draw=turn_count >= max_turns)
+        result = self._handle_game_over_sweep(
+            is_draw=current_turn >= self.engine.max_turns,
+            odd_nb_cells=((game_state["board_rows"] * game_state["board_columns"]) % 2) != 0
+        )
         winner = result["winner"]
         logger.info(f"Winner: {winner.name if winner else 'None'}")
 

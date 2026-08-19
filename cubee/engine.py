@@ -22,6 +22,7 @@ class GameEngine:
             model (GameModel): The game model containing board, players, and game state.
         """
         self.model = model
+        self.max_turns = 200
 
     def get_game_state(self) -> dict:
         """
@@ -41,6 +42,7 @@ class GameEngine:
             "opponents": self.model.get_opponents(),
             "next_player": self.next_player(apply=False),
             "valid_actions": self.get_valid_actions(),
+            "current_turn": self.model.current_turn,
             #"player_cell_positions" : self.model.player_cell_positions,
             #"is_game_over": self.is_game_over()
         }
@@ -141,6 +143,7 @@ class GameEngine:
             "enclosure_modified_cells": enclosure_modified_cells,
             "current_player": self.model.current_player(),
             "nb_cells_gained": nb_cells_gained,
+            "current_turn": self.model.current_turn,
             "is_game_over": self.is_game_over()
         }
     
@@ -187,6 +190,7 @@ class GameEngine:
             enclosure_modified_cells = self._enclosure()
         
         self.next_player()
+        self.model.current_turn += 1
         return enclosure_modified_cells
 
     def _check_enclosure(self, excluded_position: tuple[int, int], position: tuple[int, int], original_cell: Cell) -> bool:
@@ -335,7 +339,14 @@ class GameEngine:
         """
         cell_counter = self.model.board.count_cells()
 
-        game_over = cell_counter[Cell.EMPTY] == 0
+        game_over = False
+        if cell_counter[Cell.EMPTY] == 0:
+            game_over = True
+            logger.warning(f"Match ended: no empty cells left")
+        elif self.model.current_turn == self.max_turns:
+            game_over = True
+            logger.warning(f"Match terminated early: reached turn limit of {self.max_turns}.")
+
         if game_over:
             logger.info("Game over detected")
 

@@ -45,6 +45,8 @@ class Player:
         self.color = color
         self.nb_wins = 0
         self.nb_losses = 0
+        self.nb_draws = 0
+        self.nb_moves = 0
         self.row = 0
         self.column = 0
         self.cell: Cell | None = None
@@ -67,6 +69,12 @@ class Player:
     def lose(self):
         self.nb_losses += 1
 
+    def draw(self):
+        self.nb_draws += 1
+
+    def moved(self):
+        self.nb_moves += 1
+
     @staticmethod
     def clear_used_names() -> None:
         """
@@ -76,12 +84,13 @@ class Player:
     
     def reset_stats(self) -> None:
         """
-        Reset the player's statistics (wins and losses) and clear used names.
+        Reset the player's statistics (wins, losses, draws, and number of moves).
         """
         logger.debug(f"Resetting stats for {self.name}")
         self.nb_wins = 0
         self.nb_losses = 0
-        Player.clear_used_names()
+        self.nb_draws = 0
+        self.nb_moves = 0
 
     @property
     def total_games(self) -> int:
@@ -321,13 +330,18 @@ class AI(Player):
         board_grid = game_state["board_grid"]
         valid_actions = game_state["valid_actions"]
 
+        # There's a limit at how many turns a match can have
+        # This helps the AI understand that it CANNOT loop,
+        # get stuck doing the same thing over and over
+        number_of_turns = game_state["current_turn"]
+
         # Convert the entire board grid layout to a flat string tuple/key,
         # creating a predictable 25-character string representation of the grid
         grid_flat = "".join(str(cell.value) for row in board_grid for cell in row)
         
         # Combine with absolute player positions to preserve local context
-        # Format is: ((my_row, my_col), (opp_row, opp_col), "000111222000...")
-        state = (me.position, tuple(opp.position for opp in opponents), grid_flat)
+        # Format is: ((my_row, my_col), (opp_row, opp_col), "000111222000...", number_of_turns)
+        state = (me.position, tuple(opp.position for opp in opponents), grid_flat, number_of_turns)
 
         if self.training:
             if self.previous_state is not None:
@@ -353,6 +367,7 @@ class AI(Player):
 
         best_value = float('-inf')
         best_action = None
+        best_actions = []
             
         if random() < self.epsilon:
             best_action = choice(valid_actions)
@@ -361,9 +376,13 @@ class AI(Player):
                 index = ACTION_TO_INDEX[action]
                 value = q_values[index]
 
-                if value > best_value:
-                    best_action = action
+                if value == best_value:
+                    best_actions.append(action)
+                elif value > best_value:
+                    best_actions.clear()
+                    best_actions.append(action)
                     best_value = value
+            best_action = choice(best_actions)
 
         self.previous_state = state
         self.previous_action = best_action
@@ -444,13 +463,23 @@ class AI(Player):
         self.last_reward -= 10
         self.force_terminal_update()
 
-    def next_epsilon(self, coefficient = 0.95, minimum_eps = 0.05) -> None:
+    def draw(self, odd_nb_cells: bool = True) -> None:
+        """
+        Handle a draw event and update the reward signal.
+
+        Increments the draw counter and applies a small negative reward penalty.
+        """
+        super().draw()
+        self.last_reward -= 15 if odd_nb_cells else 5
+        self.force_terminal_update()
+
+    def next_epsilon(self, coefficient: float = 0.95, minimum_eps: float = 0.05) -> None:
         """
         Reduce the exploration rate (epsilon decay).
 
         Args:
-            coefficient: Multiplicative decay factor (should be < 1)
-            minimum_eps: Floor value below which epsilon will not decrease
+            coefficient (float): Multiplicative decay factor (should be < 1)
+            minimum_eps (float): Floor value below which epsilon will not decrease
         """
         self.epsilon *= coefficient
         if self.epsilon < minimum_eps:

@@ -229,15 +229,14 @@ class GameModel:
         self.board = board
         self.players = players
 
+        # Keep track of the number of turns
+        self.current_turn = 0
+
         # Storing current player index
         self.current_player_index = 0
         
         # Mapping between Cell and Player
         self.cell_to_player = {}
-
-        # Mapping between Player's cell to their owned cell positions
-        # e.g.: {Player.cell : set((0,0), (0,1), (1,1))}
-        #self.player_cell_positions = {}
 
         self._assign_cell_identities()
         self._assign_initial_positions()
@@ -273,7 +272,6 @@ class GameModel:
                 
                 player.position = corner
                 self.board[player.position] = player.cell
-                #self.player_cell_positions[player.cell] = {player.position}
                 logger.debug(f"{player.name} assigned to {player.position}")
             else:
                 logger.critical("More players than available starting positions")
@@ -314,8 +312,6 @@ class GameModel:
         is_empty = self.board[position] == Cell.EMPTY
         self.board[position] = player.cell
 
-        #self.player_cell_positions[player.cell].add(position)
-
         self.actions_history.setdefault(player.cell, [])
         self.actions_history[player.cell].append(player.position)
 
@@ -339,7 +335,7 @@ class GameModel:
         and randomly selects the starting player.
         """
         logger.info("Resetting game model")
-
+        self.current_turn = 0
         self.board.reset()
         self.actions_history.clear()
         self._assign_initial_positions()

@@ -302,7 +302,7 @@ def training(
                 if isinstance(ai, AI):
                     qtable_id = id(ai.qtable)
                     if qtable_id not in saved_qtables:
-                        QTableDAO.save(ai.qtable, f"cubee/QTables/opponent_{opponent}/{folder_name}/{ai.name}_epoch_{epoch}.pkl")
+                        QTableDAO.save(ai.qtable, f"cubee/QTables/opponent_{opponent}/{folder_name}/{'_'.join(ai.name.split())}_epoch_{epoch}.pkl")
                         saved_qtables.add(qtable_id)
 
         if epoch_summary:
