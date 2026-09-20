@@ -29,7 +29,7 @@ The agent tries random moves to discover the game rules, receives positive feedb
 
 1. Clone the repository and navigate to the directory
 ```sh
-git clone https://github.com/EgoChaxs/reinforcement-basics.git
+git clone https://github.com/DeprecatedLogic/reinforcement-basics.git
 cd reinforcement-basics
 ```
 
